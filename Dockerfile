@@ -29,5 +29,5 @@ RUN python manage.py collectstatic --noinput
 # Expose port
 EXPOSE 8000
 
-# Run the application
-CMD ["gunicorn", "jiedu.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Run migrations before launching the app
+CMD bash -c "python manage.py makemigrations && python manage.py migrate && gunicorn jiedu.wsgi:application --bind 0.0.0.0:$PORT"
