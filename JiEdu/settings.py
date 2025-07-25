@@ -14,6 +14,7 @@ from pathlib import Path
 from datetime import timedelta
 import dj_database_url #type: ignore
 import os
+from decouple import config, Csv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,12 +23,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-nzeoi+7sfk)@xoxrt&r@-=l28zhlxldu47(m8fbs#$)9^-b5yk'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 DOMAIN_NAME = 'http://127.0.0.1:8000'
 
 # Application definition
@@ -108,12 +109,13 @@ WSGI_APPLICATION = 'JiEdu.wsgi.application'
 # Lipa Na MPESA
 
 MPESA_CONFIG = {
-    "MPESA_CONSUMER_KEY": "o8S0kfKvUfLWaNdMIaWDC1yBxMGy4uxh1z4egvGVJO0unATe",
-    "MPESA_CONSUMER_SECRET": "daqKTQpLj74YJ3hP6yGXsc2RPvpG25GsdeAufrcA9GICxjf38z1UQ7cisDPkVaIp",
-    "MPESA_SHORTCODE":"174379",
-    "MPESA_PASSKEY": "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919",
-    "MPESA_CALLBACK_URL": "https://mydomain.com/api/payments/mpesa/callback/",
-    "SAFARICOM_API": "https://sandbox.safaricom.co.ke",
+    
+    "MPESA_CONSUMER_KEY": config("MPESA_CONSUMER_KEY"),
+    "MPESA_CONSUMER_SECRET":  config("MPESA_CONSUMER_SECRET"),
+    "MPESA_SHORTCODE": config("MPESA_SHORTCODE"),
+    "MPESA_PASSKEY": config("MPESA_PASSKEY"),
+    "MPESA_CALLBACK_URL": config("MPESA_CALLBACK_URL"),
+    "SAFARICOM_API": config("SAFARICOM_API"),
     "MPESA_ENV" : "sandbox" if DEBUG else "production"
 }
 
@@ -128,7 +130,7 @@ MPESA_CONFIG = {
 # }
 
 DATABASES = {
-    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))
+    'default': dj_database_url.config(default=config('DATABASE_URL'))
 }
 
 # DATABASES = {
