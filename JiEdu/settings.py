@@ -109,7 +109,6 @@ WSGI_APPLICATION = 'JiEdu.wsgi.application'
 # Lipa Na MPESA
 
 MPESA_CONFIG = {
-    
     "MPESA_CONSUMER_KEY": config("MPESA_CONSUMER_KEY"),
     "MPESA_CONSUMER_SECRET":  config("MPESA_CONSUMER_SECRET"),
     "MPESA_SHORTCODE": config("MPESA_SHORTCODE"),
@@ -133,16 +132,16 @@ DATABASES = {
     'default': dj_database_url.config(default=config('DATABASE_URL'))
 }
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'jiedu_db',
-#         'USER': 'javar',
-#         'PASSWORD': 'Bc.674982',
-#         'HOST': 'localhost',
-#         'PORT': '5432',
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
