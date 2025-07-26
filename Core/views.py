@@ -9,6 +9,7 @@ from django.apps import apps #type: ignore
 from django.views.decorators.http import require_GET, require_POST #type: ignore
 from django.http import JsonResponse #type: ignore
 from rest_framework.pagination import PageNumberPagination #type: ignore
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError #type: ignore
 
 from .models import *
 from .application import *
@@ -488,6 +489,30 @@ def promote_system(request):
         "message": message
     }, status=status.HTTP_200_OK)
 
+# Authentication
+class CleanLoginView(APIView):
+    permission_classes = []  # Allow anyone to access login
+
+    def post(self, request, *args, **kwargs):
+        serializer = CleanLoginSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            return Response(serializer.validated_data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class LogoutView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data["refresh"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({"detail": "Logout successful."}, status=status.HTTP_205_RESET_CONTENT)
+        except KeyError:
+            return Response({"error": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
+        except TokenError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+                           
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def reset_own_password(request, username):

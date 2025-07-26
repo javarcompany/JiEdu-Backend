@@ -17,11 +17,6 @@ Including another URLconf
 
 from django.contrib import admin #type: ignore
 from django.urls import path, include #type: ignore
-from rest_framework_simplejwt.views import ( #type: ignore
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView,
-) #type: ignore
 from django.conf import settings  #type: ignore
 from django.conf.urls.static import static  #type: ignore
 
@@ -34,9 +29,6 @@ urlpatterns = [
     path('', include('Attendance.urls')),
     path('', include('Finance.urls')),
     path('', include('Biometrics.urls')),
-    path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/auth/verify/', TokenVerifyView.as_view(), name='token_verify'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -19,6 +19,9 @@ router.register(r'sponsors', SponsorViewSet, basename='sponsor')
 
 urlpatterns = [
     path('api/', include(router.urls)),
+
+    path('api/auth/login/', CleanLoginView.as_view(), name='clean-login'),
+    path('api/logout/', LogoutView.as_view(), name='logout'),
     
     path('api/unit_count/', unit_count, name='units-count'),
     path('api/users_count/', users_count, name='users-count'),

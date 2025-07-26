@@ -1,7 +1,56 @@
 from rest_framework import serializers #type: ignore
 from django.contrib.auth.models import Group #type: ignore
+from django.contrib.auth import authenticate    #type: ignore
+from rest_framework_simplejwt.tokens import RefreshToken #type: ignore
+from django.utils.translation import gettext_lazy as _ #type: ignore
+
 from .models import *
 from datetime import date
+
+# Authentication
+class CleanLoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        username = attrs.get("username")
+        password = attrs.get("password")
+
+        if username and password:
+            user = authenticate(
+                request=self.context.get('request'),
+                username=username,
+                password=password
+            )
+
+            if not user:
+                raise serializers.ValidationError({
+                    "detail": _("Incorrect username or password."),
+                    "code": "invalid_credentials"
+                })
+
+            if not user.is_active:
+                raise serializers.ValidationError({
+                    "detail": _("This account is inactive. Please contact support."),
+                    "code": "inactive_account"
+                })
+
+            refresh = RefreshToken.for_user(user)
+
+            return {
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'role': user.groups.first().name if user.groups.exists() else 'user',
+                }
+            }
+        else:
+            raise serializers.ValidationError({
+                "detail": _("Username and password are required."),
+                "code": "missing_credentials"
+            })
 
 class GroupSerializer(serializers.ModelSerializer):
     group_name = serializers.CharField(source='group.name')
