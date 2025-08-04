@@ -236,9 +236,10 @@ class Course(models.Model):
     code = models.IntegerField(unique = True)
     name = models.CharField(max_length=255)
     abbr = models.CharField(verbose_name='Abbreviation',max_length=20)
-    dor = models.DateTimeField(verbose_name='Date Regsitered', blank=True, null=True, default=utils.timezone.now) #date of registration
+    dor = models.DateTimeField(verbose_name='Date Registered', blank=True, null=True, default=utils.timezone.now) #date of registration
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
-
+    module_duration = models.IntegerField(verbose_name='Module Duration', default=1)
+    
     def __str__(self):
         return self.abbr
 

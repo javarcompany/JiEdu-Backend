@@ -524,6 +524,64 @@ def institution_enrollment_trend(request):
 
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
+def student_enrollment_status_trend(request):
+    current_year = date.today().year
+    start_year = current_year - 4  # Past 5 years
+    
+    # Annotate and aggregate invoice totals by year
+    pending_data = (
+        Application.objects.filter(state = "Pending", doa__year__gte=start_year)
+        .annotate(trend_year=ExtractYear("doa"))
+        .values("trend_year")
+        .annotate(total=Count("id"))
+        .order_by("trend_year")
+    )
+
+    declined_data = (
+        Application.objects.filter(state = "Declined", doa__year__gte=start_year)
+        .annotate(trend_year=ExtractYear("doa"))
+        .values("trend_year")
+        .annotate(total=Count("id"))
+        .order_by("trend_year")
+    )
+
+    approved_data = (
+        Application.objects.filter(state = "Approved", doa__year__gte=start_year)
+        .annotate(trend_year=ExtractYear("doa"))
+        .values("trend_year")
+        .annotate(total=Count("id"))
+        .order_by("trend_year")
+    )
+
+    joined_data = (
+        Application.objects.filter(state = "Joined", doa__year__gte=start_year)
+        .annotate(trend_year=ExtractYear("doa"))
+        .values("trend_year")
+        .annotate(total=Count("id"))
+        .order_by("trend_year")
+    )
+
+    # Convert to dict: {year: amount}
+    declined_map = {str(i["trend_year"]): float(i["total"]) for i in declined_data}
+    pending_map = {str(i["trend_year"]): float(i["total"]) for i in pending_data}
+    approved_map = {str(i["trend_year"]): float(i["total"]) for i in approved_data}
+    joined_map = {str(i["trend_year"]): float(i["total"]) for i in joined_data}
+
+    # Combine into trend list
+    trend = []
+    for year in range(start_year, current_year + 1):
+        trend.append({
+            "year": str(year),
+            "declined": declined_map.get(str(year), 0),
+            "pending": pending_map.get(str(year), 0),
+            "approved": approved_map.get(str(year), 0),
+            "joined": joined_map.get(str(year), 0),
+        })
+
+    return Response(trend)
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
 def student_gender_trend(request):
     current_year = date.today().year
     start_year = current_year - 4  # Past 5 years
@@ -1046,3 +1104,4 @@ def course_exams_summary(request):
     except Exception as e:
         print("Error in Course student breakdown view:", e)
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

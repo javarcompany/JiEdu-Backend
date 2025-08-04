@@ -37,6 +37,7 @@ urlpatterns = [
     path('api/department-exams-summary/', department_exams_summary, name = "department_exams_summary"),
     path('api/institution-enrollment-summary/', institution_enrollment_summary, name = "enrollment-summary"),
     path('api/institution-enrollment-trend/', institution_enrollment_trend, name = "enrollment-trend"),
+    path('api/student-enrollment-status-trend/', student_enrollment_status_trend, name = "enrollment-status-trend"),
     path('api/student-gender-trend/', student_gender_trend, name = "student-gender-trend"),
     path("api/predict-applications/", predict_applications, name = "predict-application"),
 

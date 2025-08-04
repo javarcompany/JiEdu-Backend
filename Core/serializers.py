@@ -1,11 +1,13 @@
 from rest_framework import serializers #type: ignore
 from django.contrib.auth.models import Group #type: ignore
+from django.db.models import Q #type: ignore
 from django.contrib.auth import authenticate    #type: ignore
 from rest_framework_simplejwt.tokens import RefreshToken #type: ignore
 from django.utils.translation import gettext_lazy as _ #type: ignore
 
 from .models import *
 from datetime import date
+from .application import get_or_create_module_by_name
 
 # Authentication
 class CleanLoginSerializer(serializers.Serializer):
@@ -121,11 +123,55 @@ class DepartmentSerializer(serializers.ModelSerializer):
         model = Department
         fields = '__all__'
 
+class CourseDurationSerializer(serializers.ModelSerializer):
+    module_name = serializers.CharField(source='module.name')
+    module_abbr = serializers.CharField(source='module.abbr')
+    class Meta:
+        model = CourseDuration
+        fields = ['module_name', 'module_abbr', 'duration']
+
 class CourseSerializer(serializers.ModelSerializer):
+    durations = CourseDurationSerializer(source='courseduration_set', many=True)
     class Meta:
         model = Course
         fields = '__all__'
 
+class CourseCreateSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    abbr = serializers.CharField()
+    code = serializers.CharField()
+    department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all())
+    module_durations = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+        write_only=True
+    )
+
+    def create(self, validated_data):
+        module_durations = validated_data.pop("module_durations")
+        course = Course.objects.create(**validated_data)
+
+        for i, duration in enumerate(module_durations):
+            CourseDuration.objects.create(course=course, module=get_or_create_module_by_name(f"{i + 1}"), duration=duration)
+
+        return course
+
+    def to_representation(self, instance):
+        return {
+            "id": instance.id,
+            "name": instance.name,
+            "abbr": instance.abbr,
+            "code": instance.code,
+            "department": instance.department.name,
+            "modules": [
+                {
+                    "module": cd.module.name,
+                    "duration": cd.duration
+                }
+                for cd in CourseDuration.objects.filter(course=instance)
+            ]
+        }
+    
 class UnitSerializer(serializers.ModelSerializer):
     course_name = serializers.CharField(source='course.abbr', read_only=True)
     module_name = serializers.CharField(source='module.name', read_only=True)

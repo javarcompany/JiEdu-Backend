@@ -29,7 +29,7 @@ SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
-DOMAIN_NAME = 'http://127.0.0.1:8000'
+DOMAIN_NAME = config('DOMAIN_NAME')
 
 # Application definition
 
@@ -82,7 +82,7 @@ MIDDLEWARE = [
 CORS_ALLOW_ALL_ORIGINS = True  # or specify React frontend URL in production
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=10),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,

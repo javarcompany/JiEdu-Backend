@@ -181,6 +181,18 @@ def current_user(request):
         # Add any custom fields here
     })
 
+@api_view(['GET'])
+def branch_count(request):
+    """
+    API to return current and active branches.
+    Frontend can then calculate % change.
+    """
+    current_count = Branch.objects.all().count()
+    
+    return JsonResponse({
+        "current": current_count,
+    })
+
 class UsersViewSet(viewsets.ModelViewSet):
     queryset = UserProfile.objects.all().order_by('id')
     serializer_class = UserProfileSerializer
@@ -318,11 +330,19 @@ class CourseViewSet(viewsets.ModelViewSet):
     filter_backends = [ExtendedMultiKeywordSearchFilter]
     pagination_class = StandardResultsSetPagination
 
+    def create(self, request, *args, **kwargs):
+        serializer = CourseCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            course = serializer.save()
+            # Use main serializer for response
+            return Response(CourseSerializer(course).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     def list(self, request, *args, **kwargs):
         if request.query_params.get('all') == 'true':
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
-            return Response({'results': serializer.data})  # mimic paginated structure
+            return Response({'results': serializer.data})
         return super().list(request, *args, **kwargs)
 
 class UnitViewSet(viewsets.ModelViewSet):

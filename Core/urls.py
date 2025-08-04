@@ -25,6 +25,7 @@ urlpatterns = [
     
     path('api/unit_count/', unit_count, name='units-count'),
     path('api/users_count/', users_count, name='users-count'),
+    path('api/branch_count/', branch_count, name='branch-count'),
     path('api/current_user/', current_user, name='current-user'),
 
     path('api/genders/', gender_choices, name="genders"),    path('api/relationship-choices/', relationship_choices, name="relationships"),
