@@ -38,6 +38,6 @@ urlpatterns = [
     path('api/permissions/', list_permissions, name="list-permissions"),
 
     path('api/promote-system/', promote_system, name = "promote-system"),
-    
+
     path("api/reset-password/<str:username>/", reset_own_password, name="reset-own-password"),
 ]

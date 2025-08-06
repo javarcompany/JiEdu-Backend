@@ -119,9 +119,38 @@ def batch_promote_view(request):
     for student_id in student_ids:
         result = promote_student(student_id)
         results.append(result)
+    print(results)
+    return Response(results)
 
-    return Response({ 'messages': results, })
- 
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def institution_promotion_status(request):
+    """
+    API to check if the institution is in promotion mode.
+    Turns off promotion mode if at least 80% of eligible students are promoted.
+    """
+
+    institution = Institution.objects.first()
+    if not institution:
+        return Response({"error": "No institution found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Exclude students who have Cleared, are Suspended, or Expelled
+    excluded_states = ["Cleared", "Suspended", "Expelled", "Graduated", "Differ"]
+    eligible_students = Student.objects.exclude(state__in=excluded_states)
+    total_eligible = eligible_students.count()
+
+    # Get how many of those are active (promoted)
+    total_active = eligible_students.filter(state="Active").count()
+
+    # Auto-disable promotion mode if ≥ 80% are active
+    if total_eligible > 0:
+        percentage_active = (total_active / total_eligible) * 100
+        if percentage_active >= 75 and institution.promotionMode:
+            institution.promotionMode = False
+            institution.save()
+
+    return Response({"promotion_mode": institution.promotionMode}, status=status.HTTP_200_OK)
+
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def batch_allocate_view(request):

@@ -210,40 +210,37 @@ def promote_student(stud_id):
         current_student_allocation = Allocate_Student.objects.get(studentno = current_student)
 
         course_duration = CourseDuration.objects.filter(course = current_student.course, module = current_student_allocation.module).first()
-        if course_duration:
-            if current_student.state == "Inactive":
-                if current_student_allocation.level < course_duration.duration:
-                    current_student_allocation.level += 1
-                    current_student.state = "Active"
-                    
-            elif current_student.state == "Cleared":
-                student_course_level = int(current_student.course.module_duration)
-                current_student_module = int(str(current_student_allocation.module.abbr)[1])
+        if current_student.state == "Inactive":
+            if current_student_allocation.level < course_duration.duration:
+                current_student_allocation.level += 1
+                current_student.state = "Active"
                 
-                if current_student_module < student_course_level:
-                    student_course_level += 1
-                    student_course_level = f"M{student_course_level}"
-                    current_student_module = Module.objects.filter(abbr = student_course_level).first()
-                    if current_student_module:
-                        course_duration = CourseDuration.objects.filter(course = current_student.course, module = current_student_module).first()
-                        if course_duration:
-                            current_student_allocation.module = course_duration.module
-                            current_student_allocation.level = 1
-                            current_student_allocation.term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
-                            current_student_allocation.Class = None
-                            current_student_allocation.state = "Pending"
-                            current_student.state = "Active"
+        elif current_student.state == "Cleared":
+            student_course_level = int(current_student.course.module_duration)
+            current_student_module = int(str(current_student_allocation.module.abbr)[1])
+            
+            if current_student_module < student_course_level:
+                student_course_level += 1
+                student_course_level = f"M{student_course_level}"
+                current_student_module = Module.objects.filter(abbr = student_course_level).first()
+                if current_student_module:
+                    course_duration = CourseDuration.objects.filter(course = current_student.course, module = current_student_module).first()
+                    if course_duration:
+                        current_student_allocation.module = course_duration.module
+                        current_student_allocation.level = 1
+                        current_student_allocation.term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
+                        current_student_allocation.Class = None
+                        current_student_allocation.state = "Pending"
+                        current_student.state = "Active"
 
-            current_student.save()
-            current_student_allocation.save()
+        current_student.save()
+        current_student_allocation.save()
 
-            return f"{current_student.get_full_name()} Promoted Successfully"
-        else:
-            return f"System error"
-                
+        return {"message": f"{current_student.get_full_name()} Promoted Successfully"}
+
     except Exception as e:
         print(f"[ERROR]: {e}")
-        return e
+        return {"error": str(e)}
 
 # Deactivate student
 def deactivate_student(mode):

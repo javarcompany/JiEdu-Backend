@@ -182,7 +182,8 @@ class Institution(models.Model):
     current_intake = models.ForeignKey(Intake, verbose_name='Current Term', on_delete=models.CASCADE)
     newsystem = models.BooleanField(default=True, blank=True, null=True)
     dof = models.DateTimeField(verbose_name= 'Date Founded', blank=True, null=True) #date of foundation
-
+    promotionMode = models.BooleanField(default=False, blank=True, null=True)
+    
     def save(self, *args, **kwargs):
         if not self.pk and Institution.objects.exists():
             raise ValidationError("Only one Institution instance is allowed.")

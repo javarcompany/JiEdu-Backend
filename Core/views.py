@@ -478,6 +478,7 @@ def promote_system(request):
         # Promote to next intake within the same year
         next_intake = intakes[current_intake_index + 1]
         institution.current_intake = next_intake
+        institution.promotionMode = True  # Set promotion mode to true
         message = f"Promoted to next intake: {next_intake.name}"
     else:
         # Promote to next academic year and first intake
@@ -500,6 +501,7 @@ def promote_system(request):
 
         institution.current_year = next_year
         institution.current_intake = intakes[0]
+        institution.promotionMode = True  # Set promotion mode to true
         message = f"Promoted to new academic year: {next_year.name} and intake: {intakes[0].name}"
         
     institution.save()

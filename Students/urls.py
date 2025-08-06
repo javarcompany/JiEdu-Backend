@@ -25,7 +25,8 @@ urlpatterns = [
     path('api/student-allocation-count-pending/', get_current_and_previous_pending_allocation, name="student-count-pending-allocation"),
 
     path('api/promote/promote-batch/', batch_promote_view, name='promote-batch'),
-
+    path('api/promote/institution-promotion-status/', institution_promotion_status, name="institution-promotion-status"),
+    
     path('api/student/units/<int:id>/', student_units, name = 'student-units'),
 
     path('api/branch-student-stats/', branch_student_stats, name = "branch-student-stats"),
