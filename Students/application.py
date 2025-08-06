@@ -1,7 +1,6 @@
-from .models import *
 from django.utils import timezone #type: ignore
 from django.contrib.auth.models import Group #type: ignore
-from .models import Application, RegistrationNumber
+
 from django.core.mail import send_mail  #type: ignore
 from uuid import uuid4
 from django.conf import settings #type: ignore
@@ -10,7 +9,9 @@ import string
 import random
 
 from Core.application import generate_password
-from Core.models import UserProfile, User
+from Core.models import UserProfile, User, CourseDuration, Institution, Term
+
+from .models import *
 
 def calculate_age(dob):
     today = date.today()
@@ -202,3 +203,63 @@ def allocate_student(stud_id, class_id):
     except Class.DoesNotExist:
         return {'error': 'Class NOT found!'}
 
+# Promote student to next intake
+def promote_student(stud_id):
+    try:
+        current_student = Student.objects.get(id = stud_id)
+        current_student_allocation = Allocate_Student.objects.get(studentno = current_student)
+
+        course_duration = CourseDuration.objects.filter(course = current_student.course, module = current_student_allocation.module).first()
+        if course_duration:
+            if current_student.state == "Inactive":
+                if current_student_allocation.level < course_duration.duration:
+                    current_student_allocation.level += 1
+                    current_student.state = "Active"
+                    
+            elif current_student.state == "Cleared":
+                student_course_level = int(current_student.course.module_duration)
+                current_student_module = int(str(current_student_allocation.module.abbr)[1])
+                
+                if current_student_module < student_course_level:
+                    student_course_level += 1
+                    student_course_level = f"M{student_course_level}"
+                    current_student_module = Module.objects.filter(abbr = student_course_level).first()
+                    if current_student_module:
+                        course_duration = CourseDuration.objects.filter(course = current_student.course, module = current_student_module).first()
+                        if course_duration:
+                            current_student_allocation.module = course_duration.module
+                            current_student_allocation.level = 1
+                            current_student_allocation.term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
+                            current_student_allocation.Class = None
+                            current_student_allocation.state = "Pending"
+                            current_student.state = "Active"
+
+            current_student.save()
+            current_student_allocation.save()
+
+            return f"{current_student.get_full_name()} Promoted Successfully"
+        else:
+            return f"System error"
+                
+    except Exception as e:
+        print(f"[ERROR]: {e}")
+        return e
+
+# Deactivate student
+def deactivate_student(mode):
+    try:
+        if mode == "all":
+            for student in Student.objects.all():
+                if student.state == "Active":
+                    student.state = "Inactive"
+                    student.save()
+            return "All students have been deactivated"
+        else:
+            student = Student.objects.filter(regno = mode).first()
+            student.state = "Inactive"
+            student.save()
+            return f"{student.get_full_name()} has been deactivated"
+    except Exception as e:
+        print(f"[ERROR]: {e}")
+        return e
+    

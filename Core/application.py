@@ -63,3 +63,4 @@ def get_or_create_module_by_name(module_input_name: str):
         module = Module.objects.create(name=canonical_name, abbr=abbr)
 
     return module  # or return module.id if only ID is needed
+

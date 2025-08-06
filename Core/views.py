@@ -16,6 +16,8 @@ from .application import *
 from .serializers import *
 from .filters import *
 
+from Students.application import deactivate_student
+
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 5
     page_size_query_param = 'page_size'
@@ -71,7 +73,7 @@ class DeleteGroupView(APIView):
             return Response({ "message": "Group deleted" }, status=status.HTTP_200_OK)
         except GroupProfile.DoesNotExist:
             return Response( { "error": "Group not found" }, status=status.HTTP_404_NOT_FOUND)
-        
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAdminUser])
 def assign_permission_to_group(request, group):
@@ -218,7 +220,7 @@ class AcademicYearViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
         return super().list(request, *args, **kwargs)
- 
+
 class IntakeViewSet(viewsets.ModelViewSet):
     queryset = Intake.objects.all().order_by('id')
     serializer_class = IntakeSerializer
@@ -285,7 +287,7 @@ class ModuleViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
         return super().list(request, *args, **kwargs)
-    
+
 class BranchViewSet(viewsets.ModelViewSet):
     queryset = Branch.objects.all().order_by('id')
     serializer_class = BranchSerializer
@@ -310,7 +312,7 @@ class BranchViewSet(viewsets.ModelViewSet):
             for b in branches
         ]
         return Response(data)
-      
+
 class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = Department.objects.all().order_by('id')
     serializer_class = DepartmentSerializer
@@ -502,6 +504,13 @@ def promote_system(request):
         
     institution.save()
 
+    # Mark all students inactive
+    response = deactivate_student("all")
+
+    # Bring forward all active student's fee status
+
+    # Check Cleared Classes and Mark them inactive
+ 
     return Response({
         "success": "System promoted successfully.",
         "current_year": institution.current_year.name,
@@ -532,7 +541,7 @@ class LogoutView(APIView):
             return Response({"error": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
         except TokenError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-                           
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def reset_own_password(request, username):

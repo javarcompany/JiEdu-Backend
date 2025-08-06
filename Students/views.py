@@ -112,6 +112,18 @@ def allocate_view(request, stud_id, class_id):
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
+def batch_promote_view(request):
+    student_ids = request.data.get('student_ids', [])
+    results = []
+
+    for student_id in student_ids:
+        result = promote_student(student_id)
+        results.append(result)
+
+    return Response({ 'messages': results, })
+ 
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
 def batch_allocate_view(request):
     student_ids = request.data.get('student_ids', [])
     class_id = request.data.get('class_id')
