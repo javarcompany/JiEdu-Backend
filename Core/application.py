@@ -1,12 +1,8 @@
-from django.utils import timezone #type: ignore
-from django.contrib.auth.models import Group #type: ignore
-from django.core.mail import send_mail  #type: ignore
-from django.http import JsonResponse   #type: ignore
 import string
 import random
-from uuid import uuid4
-from django.conf import settings #type: ignore
-from datetime import timedelta
+from datetime import timedelta, datetime
+import calendar
+from django.utils.timezone import make_aware #type: ignore
 
 from .models import *
 
@@ -64,3 +60,18 @@ def get_or_create_module_by_name(module_input_name: str):
 
     return module  # or return module.id if only ID is needed
 
+def get_opening_date(year: int, month_name: str):
+    month = list(calendar.month_name).index(month_name)
+    d = datetime(year, month, 1)
+    # Move to the second Monday
+    mondays = [d + timedelta(days=i) for i in range(31) if (d + timedelta(days=i)).month == month and (d + timedelta(days=i)).weekday() == 0]
+    return make_aware(mondays[1]) if len(mondays) > 1 else make_aware(mondays[0])
+
+def get_closing_date(year: int, month_name: str):
+    month = list(calendar.month_name).index(month_name)
+    last_day = calendar.monthrange(year, month)[1]
+    d = datetime(year, month, last_day)
+    # Move backward to the last Friday
+    while d.weekday() != 4:  # 4 = Friday
+        d -= timedelta(days=1)
+    return make_aware(d)

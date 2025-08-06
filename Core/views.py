@@ -10,6 +10,7 @@ from django.views.decorators.http import require_GET, require_POST #type: ignore
 from django.http import JsonResponse #type: ignore
 from rest_framework.pagination import PageNumberPagination #type: ignore
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError #type: ignore
+from django.core.mail import send_mail  #type: ignore
 
 from .models import *
 from .application import *
@@ -477,6 +478,19 @@ def promote_system(request):
     if current_intake_index < len(intakes) - 1:
         # Promote to next intake within the same year
         next_intake = intakes[current_intake_index + 1]
+        # Check if the next intake is registered in Term
+        next_term = Term.objects.filter(name=next_intake, year=current_year).first()
+        if not next_term:
+            # Create next term if it doesn't exist
+            start, end = map(int, current_year.name.split("/"))
+            next_term = Term.objects.get_or_create(
+                name=next_intake,
+                year=current_year,
+                defaults={
+                    "openingDate": get_opening_date(start, next_intake.openingMonth.title()),
+                    "closingDate": get_closing_date(start, next_intake.closingMonth.title()),
+                }
+            )
         institution.current_intake = next_intake
         institution.promotionMode = True  # Set promotion mode to true
         message = f"Promoted to next intake: {next_intake.name}"
@@ -498,6 +512,18 @@ def promote_system(request):
                 return Response({"error": "Invalid current academic year format. Expected 'YYYY/YYYY'."}, status=400)
             
             next_year, created = AcademicYear.objects.get_or_create(name=new_name)
+
+            # Create next term
+            next_term, created = Term.objects.get_or_create(
+                name=intakes[0],
+                year=next_year,
+                defaults={
+                    "openingDate": get_opening_date(start + 1, intakes[0].openingMonth.title()),
+                    "closingDate": get_closing_date(start + 1, intakes[0].closingMonth.title()),
+                }
+            )
+            if created:
+                print(f"Created new term: {next_term.name} for year: {next_year.name}")
 
         institution.current_year = next_year
         institution.current_intake = intakes[0]

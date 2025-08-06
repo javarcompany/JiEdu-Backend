@@ -220,9 +220,9 @@ def promote_student(stud_id):
             current_student_module = int(str(current_student_allocation.module.abbr)[1])
             
             if current_student_module < student_course_level:
-                student_course_level += 1
-                student_course_level = f"M{student_course_level}"
-                current_student_module = Module.objects.filter(abbr = student_course_level).first()
+                current_student_module += 1
+                current_student_module = f"M{current_student_module}"
+                current_student_module = Module.objects.filter(abbr = current_student_module).first()
                 if current_student_module:
                     course_duration = CourseDuration.objects.filter(course = current_student.course, module = current_student_module).first()
                     if course_duration:
@@ -248,7 +248,13 @@ def deactivate_student(mode):
         if mode == "all":
             for student in Student.objects.all():
                 if student.state == "Active":
-                    student.state = "Inactive"
+                    current_student_allocation = Allocate_Student.objects.get(studentno = student)
+
+                    course_duration = CourseDuration.objects.filter(course = student.course, module = current_student_allocation.module).first()
+                    if current_student_allocation.level == course_duration.duration:
+                        student.state = "Cleared"
+                    else:
+                        student.state = "Inactive"
                     student.save()
             return "All students have been deactivated"
         else:
