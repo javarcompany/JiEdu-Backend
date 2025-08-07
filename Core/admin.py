@@ -60,7 +60,7 @@ class UnitAdmin(admin.ModelAdmin):
 
 @admin.register(Class)
 class ClassAdmin(admin.ModelAdmin):
-    list_display = ("name","course","intake","module","dor")
+    list_display = ("name","course","reg_intake","module","dor")
 
 @admin.register(Classroom)
 class ClassroomAdmin(admin.ModelAdmin):

@@ -18,6 +18,7 @@ from .serializers import *
 from .filters import *
 
 from Students.application import deactivate_student
+from Finance.models import FeeParticular
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 5
@@ -456,6 +457,7 @@ class InstitutionViewSet(viewsets.ViewSet):
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def promote_system(request):
+    # Populate the institution next year and intake
     institution = Institution.objects.first()
 
     if not institution:
@@ -463,6 +465,9 @@ def promote_system(request):
 
     current_year = institution.current_year
     current_intake = institution.current_intake
+
+    next_intake = None
+    next_year = None
 
     intakes = list(Intake.objects.all().order_by("id"))
     years = list(AcademicYear.objects.all().order_by("id"))
@@ -491,8 +496,7 @@ def promote_system(request):
                     "closingDate": get_closing_date(start, next_intake.closingMonth.title()),
                 }
             )
-        institution.current_intake = next_intake
-        institution.promotionMode = True  # Set promotion mode to true
+        next_year = current_year  # Stay in the same year
         message = f"Promoted to next intake: {next_intake.name}"
     else:
         # Promote to next academic year and first intake
@@ -513,37 +517,71 @@ def promote_system(request):
             
             next_year, created = AcademicYear.objects.get_or_create(name=new_name)
 
-            # Create next term
-            next_term, created = Term.objects.get_or_create(
-                name=intakes[0],
-                year=next_year,
-                defaults={
-                    "openingDate": get_opening_date(start + 1, intakes[0].openingMonth.title()),
-                    "closingDate": get_closing_date(start + 1, intakes[0].closingMonth.title()),
-                }
-            )
-            if created:
-                print(f"Created new term: {next_term.name} for year: {next_year.name}")
+        # Create next term
+        next_intake = intakes[0]  # Reset to first intake
+        next_term, created = Term.objects.get_or_create(
+            name=next_intake,
+            year=next_year,
+            defaults={
+                "openingDate": get_opening_date(start + 1, next_intake.openingMonth.title()),
+                "closingDate": get_closing_date(start + 1, next_intake.closingMonth.title()),
+            }
+        )
+        if created:
+            print(f"Created new term: {next_term.name} for year: {next_year.name}")
+        message = f"Promoted to new academic year: {next_year.name} and intake: {next_intake.name}"
 
-        institution.current_year = next_year
-        institution.current_intake = intakes[0]
-        institution.promotionMode = True  # Set promotion mode to true
-        message = f"Promoted to new academic year: {next_year.name} and intake: {intakes[0].name}"
-        
+    # Check if next_year and next_intake have fees set
+    fee_responses = []
+    courses_with_fees_optimum = 0
+    for courseduration in CourseDuration.objects.all():
+        fee_structure = FeeParticular.objects.filter(course=courseduration.course, term__year=next_year, term__name=next_intake).first()
+        if not fee_structure:
+            fee_responses.append(f"{courseduration.course.abbr} {courseduration.module.abbr} has no fee structure for {next_year.name} - {next_intake.name}")
+        else:
+            courses_with_fees_optimum += 1
+
+    if courses_with_fees_optimum / Course.objects.count() < 0.7:
+        return Response({
+            "error": fee_responses or "Not enough courses have fee structures set for the next year and intake.",
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Set the institution's current year and intake
+    institution.current_year = next_year
+    institution.current_intake = next_intake
+    institution.promotionMode = True  # Set promotion mode to true
+
     institution.save()
 
     # Mark all students inactive
-    response = deactivate_student("all")
-
-    # Bring forward all active student's fee status
+    student_response = deactivate_student("all")
 
     # Check Cleared Classes and Mark them inactive
- 
+    active_classes = Class.objects.filter(state="active")
+    
+    current_term = Term.objects.filter(year=institution.current_year, name=institution.current_intake).first()
+    cleared_classes = []
+    for active_class in active_classes:
+        course_duration = CourseDuration.objects.filter(course=active_class.course, module = active_class.module).first()
+        if active_class.reg_intake == current_term:
+            pass
+        else:
+            if active_class.level == course_duration.duration:
+                # Mark the class as cleared
+                active_class.state = "cleared"
+                active_class.save()
+                cleared_classes.append(active_class)
+            elif active_class.level < course_duration.duration:
+                active_class.level += 1
+                active_class.intake = current_term
+                active_class.save()
+
     return Response({
         "success": "System promoted successfully.",
         "current_year": institution.current_year.name,
         "current_intake": institution.current_intake.name,
-        "message": message
+        "message": message,
+        "error": student_response,
     }, status=status.HTTP_200_OK)
 
 # Authentication

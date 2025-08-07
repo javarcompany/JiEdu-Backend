@@ -521,18 +521,18 @@ def kpi_dashboard(request):
         "term_txns": f"Kshs. {this_term_txns:,.2f}",
     })
 
-def create_invoice_for_new_student(student):
-    term = Term.objects.get(name=student.intake, year=student.intake_year)
-    particulars = FeeParticular.objects.filter(course=student.course, module=student.module, term=term)
-    
-    invoice = Invoice.objects.create(
-        student=student,
-        term=term,
-        total_amount=sum(p.amount for p in particulars),
-        state="Pending",
-    )
-    invoice.narration.set(particulars)
+def create_invoice_for_new_student(mode):
+    if mode == "all":
+        excluded_states = ["Cleared", "Suspended", "Expelled", "Graduated", "Differ"]
+        eligible_students = Student.objects.exclude(state__in=excluded_states)
+        for student in eligible_students:
+            target_term = Term.objects.get(name=Institution.objects.first().current_intake, year=Institution.objects.first().current_year)
+            create_newterm_invoice(student.regno, term_id=target_term.id)
 
+    else:
+        # Handle specific mode logic here
+        pass
+        
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def generate_statement(request):

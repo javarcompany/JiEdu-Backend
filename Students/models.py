@@ -23,6 +23,7 @@ from Core.models import (
 STATE_CHOICES = [
     ("Active","Active"),
     ("Suspended","Suspended"),
+    ("Graduated","Graduated"),
     ("Expelled","Expelled"),
     ("Cleared","Cleared"),
     ("Differ","Differ"),

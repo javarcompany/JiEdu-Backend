@@ -284,7 +284,8 @@ class Unit(models.Model):
 class Class(models.Model):
     name = models.CharField(max_length=255)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
-    intake = models.ForeignKey(Term, on_delete=models.CASCADE)
+    reg_intake = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='classes_registered')
+    intake = models.ForeignKey(Term, on_delete=models.CASCADE, related_name='classes_updated')
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
     module = models.ForeignKey(Module, on_delete=models.CASCADE)
     level = models.IntegerField(default=1, blank=True, null=True)
@@ -292,11 +293,11 @@ class Class(models.Model):
     dor = models.DateTimeField(verbose_name='Date Registered', default=utils.timezone.now, blank=True, null=True) #date of registration
 
     def __str__(self):
-        return self.name +'_'+ str(self.intake)
+        return self.name +'_'+ str(self.reg_intake)
     
     class Meta:
         verbose_name_plural = "Class"
-        unique_together = ("name", "intake")
+        unique_together = ("name", "reg_intake")
 
 class Classroom(models.Model):
     name = models.CharField(max_length=255, unique=True)

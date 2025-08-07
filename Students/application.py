@@ -11,6 +11,8 @@ import random
 from Core.application import generate_password
 from Core.models import UserProfile, User, CourseDuration, Institution, Term
 
+from Finance.application import create_newterm_invoice
+
 from .models import *
 
 def calculate_age(dob):
@@ -100,7 +102,7 @@ def enroll_student(reg_no):
             intake = applicant.intake, sponsor = applicant.sponsor, passport = applicant.passport
         )
 
-        # Allocate Student to a NULL student
+        # Allocate Student to a NULL class
         #  Get the appropriate Term (year + intake)
         app_term = Term.objects.get(year = applicant.year, name = applicant.intake)
         currentstudent = Student.objects.get(regno = new_perm_regno)
@@ -236,6 +238,9 @@ def promote_student(stud_id):
         current_student.save()
         current_student_allocation.save()
 
+        # Create Fee Invoice for the new term
+        create_newterm_invoice(current_student.regno, term_id=Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year).id)
+
         return {"message": f"{current_student.get_full_name()} Promoted Successfully"}
 
     except Exception as e:
@@ -245,21 +250,43 @@ def promote_student(stud_id):
 # Deactivate student
 def deactivate_student(mode):
     try:
+        current_term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
+        
         if mode == "all":
             for student in Student.objects.all():
                 if student.state == "Active":
                     current_student_allocation = Allocate_Student.objects.get(studentno = student)
 
-                    course_duration = CourseDuration.objects.filter(course = student.course, module = current_student_allocation.module).first()
-                    if current_student_allocation.level == course_duration.duration:
-                        student.state = "Cleared"
+                    if current_student_allocation.term == current_term:
+                        continue
                     else:
-                        student.state = "Inactive"
-                    student.save()
+                        course_duration = CourseDuration.objects.filter(course = student.course, module = current_student_allocation.module).first()
+                        if current_student_allocation.level == course_duration.duration:
+                            # Check if student has cleared all modules
+                            if current_student_allocation.module.abbr[1:] == student.course.module_duration:
+                                student.state = "Graduated"
+                            else:
+                                student.state = "Cleared"
+                        else:
+                            student.state = "Inactive"
+                        student.save()
             return "All students have been deactivated"
         else:
             student = Student.objects.filter(regno = mode).first()
-            student.state = "Inactive"
+            if student.state == "Active":
+                current_student_allocation = Allocate_Student.objects.get(studentno = student)
+                if current_student_allocation.term == current_term:
+                    return f"{student.get_full_name()} is already active in the current term"
+                else:
+                    course_duration = CourseDuration.objects.filter(course = student.course, module = current_student_allocation.module).first()
+                    if current_student_allocation.level == course_duration.duration:
+                        # Check if student has cleared all modules
+                        if current_student_allocation.module.abbr[1:] == student.course.module_duration:
+                            student.state = "Graduated"
+                        else:
+                            student.state = "Cleared"
+                    else:
+                        student.state = "Inactive"
             student.save()
             return f"{student.get_full_name()} has been deactivated"
     except Exception as e:

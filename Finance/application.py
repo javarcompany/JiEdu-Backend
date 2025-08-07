@@ -4,6 +4,8 @@ from datetime import datetime
 from django.utils import timezone #type: ignore
 from django.db.models import Sum, Avg, F  #type: ignore
 
+from Students.models import Allocate_Student  #type: ignore
+
 from .configs import api_settings
 from .models import *
 from .fee_manager import FeeManager
@@ -15,6 +17,25 @@ class IllegalPhoneNumberException(Exception):
 	Raised when phone number is in illegal format.
 	"""
 	pass
+
+def generate_invoice_number(term):
+    """
+    Generates a unique invoice number using:
+    [Year][Term]-[CourseCode]-[RegNo]-[SequentialCount]
+    """
+
+    year = term.year.name.split("/")[0]  # e.g., '2023-2024' → '2023'
+
+    # Count existing invoices for this student in the term (useful if allowing multiple invoices)
+    existing_count = Invoice.objects.all().count() + 1
+
+    # Format count as 3-digit number (001, 002, etc.)
+    count_str = str(existing_count).zfill(3)
+
+    # Final invoice number
+    invoice_number = f"INV\\{year}\\{count_str}"
+
+    return invoice_number
 
 def format_phone_number(phone_number):
 	"""
@@ -175,6 +196,63 @@ def create_receipt(attempt_id):
         print(f"Error creating receipt: {str(e)}")
         return None
 
+def create_newterm_invoice(student_regno, term_id):
+    try:
+        target_term = Term.objects.get(id=term_id)
+    except Term.DoesNotExist:
+        print("Current term not found.")
+        return "Current term not found."
+
+    try:
+        # Get the allocated student, including student and module info
+        allocated_student = Allocate_Student.objects.get(studentno__regno=student_regno)
+        student = allocated_student.studentno  # This is the actual Student instance
+        module = allocated_student.module
+
+        # Check if an invoice already exists for this student and term
+        existing_invoice = Invoice.objects.filter(student=student, term=target_term).first()
+        if existing_invoice:
+            print(f"Invoice already exists for student {student_regno} in term {target_term}.")
+            return existing_invoice
+
+        # Get applicable fee particulars for this student's course, module, and term
+        fee_narrations = FeeParticular.objects.filter(
+            course=student.course,
+            module=module,
+            term=target_term
+        )
+
+        if not fee_narrations.exists():
+            print("No fee particulars found for this student and term.")
+            return "No fee particulars found."
+        
+        # Calculate total amount
+        total_amount = sum(item.amount for item in fee_narrations)
+ 
+        # Create the invoice without narration first (since it's ManyToMany)
+        invoice = Invoice.objects.create(
+            student=student,
+            term=target_term,
+            amount=total_amount,
+            state="Pending",
+            is_cleared=False,
+            paid_amount=0.00,
+            inv_no=generate_invoice_number(target_term)
+        )
+  
+        # Now attach the many-to-many narration
+        invoice.narration.set(fee_narrations)
+
+        return invoice
+    
+    except Allocate_Student.DoesNotExist:
+        print(f"Student with regno {student_regno} not found in allocation.")
+        return f"Student with regno {student_regno} not found in allocation."
+
+    except Exception as e:
+        print(f"Unexpected error creating invoice: {str(e)}")
+        return f"Error: {str(e)}"
+    
 def process_fee_allocation(reciept_id):
     try:
 
