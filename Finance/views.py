@@ -1561,52 +1561,125 @@ def create_invoice_student(request):
     student_ids = request.data.get("student_ids", [])
     voteheads = request.data.get("voteheads", {})
 
-    inst = Institution.objects.first()
-    term = Term.objects.filter(name=inst.current_intake, year=inst.current_year).first()
+    try:
 
-    students = Allocate_Student.objects.filter(id__in=student_ids)
-    if not students.exists():
-        return Response({"error": "No valid students found."}, status=status.HTTP_404_NOT_FOUND)
+        inst = Institution.objects.first()
+        term = Term.objects.filter(name=inst.current_intake, year=inst.current_year).first()
 
-    created_invoices = []
-    for student in students:
-        # Create Invoice Items
-        part_ids = []
-        for registry in voteheads:
-            votehead = Account.objects.filter(id = registry["votehead"]).first()
-            amount = registry["amount"]
-            # Create a Fee Particular and add the fee particular id
-            part_name = str(student.studentno.regno) + "_" + str(votehead.votehead) + "_" + str(term.name)
-            fee_narration = FeeParticular.objects.create(
-                                    name = part_name, 
-                                    course = student.Class.course, 
-                                    module = student.module, 
-                                    term = term, 
-                                    account = votehead, 
-                                    amount = amount,
-                                    target = "Student"
+        students = Allocate_Student.objects.filter(id__in=student_ids)
+        if not students.exists():
+            return Response({"error": "No valid students found."}, status=status.HTTP_404_NOT_FOUND)
+
+        created_invoices = []
+        for student in students:
+            # Create Invoice Items
+            part_ids = []
+            for registry in voteheads:
+                votehead = Account.objects.filter(id = registry["votehead"]).first()
+                amount = registry["amount"]
+                # Create a Fee Particular and add the fee particular id
+                part_name = str(student.studentno.regno) + "_" + str(votehead.votehead) + "_" + str(term.name)
+                fee_narration = FeeParticular.objects.create(
+                    name = part_name, 
+                    course = student.Class.course, 
+                    module = student.module, 
+                    term = term, 
+                    account = votehead, 
+                    amount = amount,
+                    target = "Student"
+                )
+                part_ids.append(fee_narration)
+                
+            total_amount = sum(int(item.amount) for item in part_ids)
+
+            # Create Invoice
+            invoice = Invoice.objects.create(
+                inv_no = generate_invoice_number(term), 
+                student=student.studentno, 
+                term=term, 
+                amount=total_amount,
+                state="Pending",
+                is_cleared=False,
+                paid_amount=0.00,
             )
-            part_ids.append(fee_narration)
-            
-        total_amount = sum(int(item.amount) for item in part_ids)
+            invoice.narration.set(part_ids)
+            invoice.save()
 
-        # Create Invoice
-        invoice = Invoice.objects.create(
-            inv_no = generate_invoice_number(term), 
-            student=student.studentno, 
-            term=term, 
-            amount=total_amount,
-            state="Pending",
-            is_cleared=False,
-            paid_amount=0.00,
-        )
-        invoice.narration.set(part_ids)
-        invoice.save()
+            created_invoices.append(invoice.inv_no)
 
-        created_invoices.append(invoice.inv_no)
+        return Response({
+            "success": True,
+            "message": f"Invoices created for {students.count()} student(s).",
+            "invoice_ids": created_invoices
+        }, status=status.HTTP_201_CREATED)
+    
+    except Exception as e:
+        return Response({
+            "error": False,
+            "message": f"{e}"
+        })
 
-    return Response({
-        "success": True,
-        "message": f"Invoices created for {students.count()} student(s).",
-        "invoice_ids": created_invoices
-    }, status=status.HTTP_201_CREATED)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_invoice_class(request):
+    class_ids = request.data.get("class_ids", [])
+    voteheads = request.data.get("voteheads", {})
+    try:
+
+        inst = Institution.objects.first()
+        term = Term.objects.filter(name=inst.current_intake, year=inst.current_year).first()
+
+        classes = Class.objects.filter(id__in=class_ids)
+        if not classes.exists():
+            return Response({"error": "No valid classes found."}, status=status.HTTP_404_NOT_FOUND)
+
+        created_invoices = []
+        for klass in classes:
+            part_ids = []
+            students = Allocate_Student.objects.filter(Class = klass, term = term)
+            for student in students:
+                # Create Invoice Items
+                part_ids = []
+                for registry in voteheads:
+                    votehead = Account.objects.filter(id = registry["votehead"]).first()
+                    amount = registry["amount"]
+                    # Create a Fee Particular and add the fee particular id
+                    part_name = str(student.studentno.regno) + "_" + str(votehead.votehead) + "_" + str(term.name)
+                    fee_narration = FeeParticular.objects.create(
+                        name = part_name, 
+                        course = student.Class.course, 
+                        module = student.module, 
+                        term = term, 
+                        account = votehead, 
+                        amount = amount,
+                        target = "Class"
+                    )
+                    part_ids.append(fee_narration)
+                    
+                total_amount = sum(int(item.amount) for item in part_ids)
+
+                # Create Invoice
+                invoice = Invoice.objects.create(
+                    inv_no = generate_invoice_number(term), 
+                    student=student.studentno, 
+                    term=term, 
+                    amount=total_amount,
+                    state="Pending",
+                    is_cleared=False,
+                    paid_amount=0.00,
+                )
+                invoice.narration.set(part_ids)
+                invoice.save()
+                created_invoices.append(invoice.inv_no)
+
+        return Response({
+            "success": True,
+            "message": f"Invoices created for {classes.count()} class(es).",
+            "invoice_ids": created_invoices
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({
+            "error": False,
+            "message": f"{e}"
+        })
