@@ -183,3 +183,8 @@ def activate_camera(request):
         print("Camera Activation Error:", e)
         return JsonResponse({"error": str(e)}, status=500)
 
+@api_view(['GET'])
+def camera_count(request):
+    count = CameraDevice.objects.count()
+    return Response({"count": count})
+

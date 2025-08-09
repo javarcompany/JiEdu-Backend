@@ -102,6 +102,7 @@ class FeeParticular(BaseModel):
     term = models.ForeignKey(Term, on_delete=models.CASCADE)
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    target = models.CharField(max_length=30, choices=[("Student", "Student"), ("Class","Class"), ("Course", "Course")], default="Course", blank=True, null=True)
 
     def __str__(self):
         return f"{self.account} #{self.amount}"
@@ -109,7 +110,6 @@ class FeeParticular(BaseModel):
     class Meta:
         verbose_name = "Fee Particular"
         verbose_name_plural = "Fee Particulars"
-        unique_together = ('course', 'module', 'term', 'account')
 
 class Invoice(BaseModel):
     inv_no = models.CharField(max_length=30)

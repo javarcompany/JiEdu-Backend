@@ -233,7 +233,15 @@ class StudentViewSet(viewsets.ModelViewSet):
         if request.query_params.get('all') == 'true':
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
-            return Response({'results': serializer.data})  # mimic paginated structure
+            return Response({'results': serializer.data})
+
+        elif request.query_params.get('active') == 'true':
+            queryset = self.filter_queryset(
+                self.get_queryset().filter(state="Active")
+            )
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({'results': serializer.data})
+
         return super().list(request, *args, **kwargs)
     
     @action(detail=False, methods=['get'], url_path='department_counts')
@@ -317,6 +325,13 @@ class StudentAllocationViewSet(viewsets.ModelViewSet):
                 queryset = self.filter_queryset(self.get_queryset())
                 serializer = self.get_serializer(queryset, many=True)
                 return Response({'results': serializer.data})  # mimic paginated structure
+            elif request.query_params.get('active') == 'true':
+                queryset = self.filter_queryset(
+                    self.get_queryset().filter(studentno__state="Active")
+                )
+                serializer = self.get_serializer(queryset, many=True)
+                return Response({'results': serializer.data})
+    
             return super().list(request, *args, **kwargs)
         
     @action(detail=False, methods=['get'], url_path='class_counts')

@@ -124,11 +124,17 @@ class DepartmentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class CourseDurationSerializer(serializers.ModelSerializer):
+    course_department_abbr = serializers.CharField(source = 'course.department.abbr')
+    course_department_name = serializers.CharField(source = 'course.department.name')
+    course_code = serializers.CharField(source = 'course.code')
+    course_abbr = serializers.CharField(source = 'course.abbr')
+    course_name = serializers.CharField(source = 'course.name')
     module_name = serializers.CharField(source='module.name')
     module_abbr = serializers.CharField(source='module.abbr')
+    
     class Meta:
         model = CourseDuration
-        fields = ['module_name', 'module_abbr', 'duration']
+        fields = ['id', 'course', 'course_name', 'course_abbr', 'course_code', 'course_department_name', 'course_department_abbr', 'module_name', 'module_abbr', 'duration']
 
 class CourseSerializer(serializers.ModelSerializer):
     durations = CourseDurationSerializer(source='courseduration_set', many=True)

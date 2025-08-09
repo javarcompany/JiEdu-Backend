@@ -515,10 +515,10 @@ def kpi_dashboard(request):
         return None
     
     return Response({
-        "total_collected": f"Kshs. {total_collected:,.2f}",
-        "pending_dues": f"Kshs. {abs(pending_dues):,.2f}",  # abs in case it's negative
+        "total_collected": total_collected,
+        "pending_dues": abs(pending_dues),  # abs in case it's negative
         "total_students": str(total_students),
-        "term_txns": f"Kshs. {this_term_txns:,.2f}",
+        "term_txns": this_term_txns,
     })
 
 def create_invoice_for_new_student(mode):
@@ -561,7 +561,7 @@ def generate_statement(request):
                 "date": invoice.created_at,  # will be formatted later
                 "record": {
                     "detail": "New Term Invoice",
-                    "paid_in": "",
+                    "paid_in": f"{invoice.paid_amount} bal b/f",
                     "paid_out": f"{invoice.amount}",
                     "balance": f"{status.filter(purpose = invoice.inv_no).first().arrears}",
                 }
@@ -889,10 +889,10 @@ def view_course_invoices(request):
 
         # Group Fee Particulars by Module
         module_fees = {}
-        modules = Module.objects.all().order_by("name")
+        modules = Module.objects.all().order_by("id")
 
         for module in modules:
-            fee_particulars = FeeParticular.objects.filter(course=course, term=term, module=module)
+            fee_particulars = FeeParticular.objects.filter(course=course, term=term, module=module, target="Course")
 
             if not fee_particulars.exists():
                 continue
@@ -970,9 +970,11 @@ def class_income_statement(request):
             for student in students:
                 invoices = Invoice.objects.filter(student=student, term=term)
                 receipts = Receipt.objects.filter(student=student, term=term)
-
+                
                 total_invoiced += sum(inv.amount for inv in invoices)
                 total_paid += sum(rcp.amount for rcp in receipts)
+                # Add Overpayments to total_paid
+                total_paid += sum(inv.paid_amount for inv in invoices if inv.paid_amount is not None)
 
             balance = total_invoiced - total_paid
 
@@ -1034,6 +1036,8 @@ def class_student_breakdown(request):
 
             invoice_total = sum(inv.amount for inv in invoices)
             paid_total = sum(rc.amount for rc in receipts)
+            # Add Overpayments to paid_total
+            paid_total += sum(inv.paid_amount for inv in invoices if inv.paid_amount is not None)
             balance = invoice_total - paid_total
 
             if balance == 0:
@@ -1421,3 +1425,188 @@ def predict_fee_payments(request):
     }
 
     return Response(response)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def check_fee_structure(request):
+    course_id = request.query_params.get('course_id')
+    module_id = request.query_params.get('module_id')
+
+    try:
+        # Fallback to current term
+        inst = Institution.objects.first()
+        term = Term.objects.filter(name=inst.current_intake, year=inst.current_year).first()
+
+        if not term:
+            return Response({"error": "No term found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if course_id:
+            course = Course.objects.filter(id=course_id).first()
+        else:
+            return Response({"error": "No course found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not course:
+            return Response({"error": "No course found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get Fee Particulars by Module
+        if module_id:
+            module = Module.objects.filter(id = module_id).first()
+        else:
+            return Response({"error": "No module found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        fee_particulars = FeeParticular.objects.filter(course=course, term=term, module=module)
+
+        if not fee_particulars.exists():
+            return Response({"feeCheck": False}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"feeCheck":True}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print("Fee Structure Error:", e)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def check_invoice_match_feestructure(request):
+    student_ids = request.data.get("student_ids", [])
+    voteheads = request.data.get("voteheads", {})
+
+    try:
+        if not student_ids:
+            return Response({"error": "No students provided."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        inst = Institution.objects.first()
+        term = Term.objects.filter(name=inst.current_intake, year=inst.current_year).first()
+
+        if not term:
+            return Response({"error": "No term found"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        results = []
+
+        for student_id in student_ids:
+            try:
+                student_alloc = Allocate_Student.objects.get(id=student_id)
+
+                course_id = getattr(getattr(student_alloc.studentno, "course", None), "id", None)
+                module_id = getattr(getattr(student_alloc, "module", None), "id", None)
+
+                if not course_id or not module_id:
+                    results.append({
+                        "student_id": student_id,
+                        "student_name": str(student_alloc),
+                        "match": False,
+                        "reason": "Missing course/module"
+                    })
+                    continue
+
+                # ✅ Check fee structure
+                fee_structure_qs = FeeParticular.objects.filter(
+                    course_id=course_id,
+                    module_id=module_id,
+                    term=term
+                )
+                print(f"[STUDENT]: ", student_alloc.studentno.get_full_name())
+                print(f"[FEE STRUCTURE]: ", fee_structure_qs)
+
+                if not fee_structure_qs.exists():
+                    results.append({
+                        "student_id": student_id,
+                        "student_name": str(student_alloc),
+                        "match": False,
+                        "reason": "No matching fee structure"
+                    })
+                    continue
+
+                # ✅ Check if voteheads are in fee structure
+                fee_structure_ids = set(fee_structure_qs.values_list('id', flat=True))
+                invoice_qs = Invoice.objects.filter(
+                    student=student_alloc.studentno,
+                    term=term
+                ).distinct()
+                print(f"[INVOICES]: ", invoice_qs)
+
+                invoice_match = False
+                for invoice in invoice_qs:
+                    invoice_fee_ids = set(invoice.narration.values_list('id', flat=True))
+                    if invoice_fee_ids == fee_structure_ids:
+                        invoice_match = True
+                        break
+                print(f"[INVOICE MATCH]: ", invoice_match)
+
+                results.append({
+                    "student_id": student_id,
+                    "student_name": str(student_alloc.studentno.get_full_name()),
+                    "match": invoice_match,
+                    "reason": "Match found" if invoice_match else "No matching invoice"
+                })
+                print("\n")
+ 
+            except Allocate_Student.DoesNotExist:
+                results.append({
+                    "student_id": student_id,
+                    "match": False,
+                    "reason": "Student not found"
+                })
+
+        print(results)
+        return Response({"results": results}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print("Fee Structure Error:", e)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_invoice_student(request):
+    student_ids = request.data.get("student_ids", [])
+    voteheads = request.data.get("voteheads", {})
+
+    inst = Institution.objects.first()
+    term = Term.objects.filter(name=inst.current_intake, year=inst.current_year).first()
+
+    students = Allocate_Student.objects.filter(id__in=student_ids)
+    if not students.exists():
+        return Response({"error": "No valid students found."}, status=status.HTTP_404_NOT_FOUND)
+
+    created_invoices = []
+    for student in students:
+        # Create Invoice Items
+        part_ids = []
+        for registry in voteheads:
+            votehead = Account.objects.filter(id = registry["votehead"]).first()
+            amount = registry["amount"]
+            # Create a Fee Particular and add the fee particular id
+            part_name = str(student.studentno.regno) + "_" + str(votehead.votehead) + "_" + str(term.name)
+            fee_narration = FeeParticular.objects.create(
+                                    name = part_name, 
+                                    course = student.Class.course, 
+                                    module = student.module, 
+                                    term = term, 
+                                    account = votehead, 
+                                    amount = amount,
+                                    target = "Student"
+            )
+            part_ids.append(fee_narration)
+            
+        total_amount = sum(int(item.amount) for item in part_ids)
+
+        # Create Invoice
+        invoice = Invoice.objects.create(
+            inv_no = generate_invoice_number(term), 
+            student=student.studentno, 
+            term=term, 
+            amount=total_amount,
+            state="Pending",
+            is_cleared=False,
+            paid_amount=0.00,
+        )
+        invoice.narration.set(part_ids)
+        invoice.save()
+
+        created_invoices.append(invoice.inv_no)
+
+    return Response({
+        "success": True,
+        "message": f"Invoices created for {students.count()} student(s).",
+        "invoice_ids": created_invoices
+    }, status=status.HTTP_201_CREATED)

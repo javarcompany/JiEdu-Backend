@@ -349,6 +349,19 @@ class CourseViewSet(viewsets.ModelViewSet):
             return Response({'results': serializer.data})
         return super().list(request, *args, **kwargs)
 
+class CourseDurationViewSet(viewsets.ModelViewSet):
+    queryset = CourseDuration.objects.all().order_by('id')
+    serializer_class = CourseDurationSerializer
+    filter_backends = [ExtendedMultiKeywordSearchFilter]
+    pagination_class = StandardResultsSetPagination
+
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get('all') == 'true':
+            queryset = self.filter_queryset(self.get_queryset())
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({'results': serializer.data})
+        return super().list(request, *args, **kwargs)
+
 class UnitViewSet(viewsets.ModelViewSet):
     queryset = Unit.objects.all().order_by('id')
     serializer_class = UnitSerializer
@@ -373,6 +386,12 @@ class ClassViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        elif request.query_params.get('active') == 'true':
+                queryset = self.filter_queryset(
+                    self.get_queryset().filter(state="Active")
+                )
+                serializer = self.get_serializer(queryset, many=True)
+                return Response({'results': serializer.data})
         
         if request.query_params.get('course_id'):
             course_id = request.query_params.get('course_id')
@@ -541,7 +560,7 @@ def promote_system(request):
         else:
             courses_with_fees_optimum += 1
 
-    if courses_with_fees_optimum / Course.objects.count() < 0.7:
+    if courses_with_fees_optimum / CourseDuration.objects.count() < 0.7:
         return Response({
             "error": fee_responses or "Not enough courses have fee structures set for the next year and intake.",
         }, status=status.HTTP_400_BAD_REQUEST)
@@ -635,3 +654,4 @@ def reset_own_password(request, username):
         return Response({"message": "Password reset and sent via email successfully."})
     except Exception as e:
         return Response({"message": "No Internet Connection"})
+    

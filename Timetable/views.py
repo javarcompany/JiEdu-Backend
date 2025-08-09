@@ -289,7 +289,9 @@ def current_lessons(request):
     lessons = Timetable.objects.filter(
         day__name__iexact=current_day,
         lesson__start__lte=current_time,
-        lesson__end__gte=current_time
+        lesson__end__gte=current_time,
+        term__name = Institution.objects.first().current_intake,
+        term__year = Institution.objects.first().current_year
     ).select_related('Class', 'unit__unit', 'unit__regno')
 
     data = []
@@ -335,7 +337,7 @@ def student_timetable(request, id):
     # print("Class ID:  ", class_id)
     lessons = TableSetup.objects.filter(code="Lesson").order_by('start')  # Sorted by time
     days = Days.objects.order_by('id')
-    timetable_entries = Timetable.objects.filter(Class__id = class_id).select_related('day', 'lesson', 'unit', 'classroom')
+    timetable_entries = Timetable.objects.filter(Class__id = class_id, term = Class.objects.get(id = class_id).intake).select_related('day', 'lesson', 'unit', 'classroom')
     serializer = TimetableSerializer(timetable_entries, many=True)
     data = {
         "lessons": [{"id": l.id, "name": l.name, "start": l.start, "end": l.end} for l in lessons],
@@ -375,7 +377,7 @@ def class_timetable(request):
 
     lessons = TableSetup.objects.filter(code="Lesson").order_by('start')  # Sorted by time
     days = Days.objects.order_by('id')
-    timetable_entries = Timetable.objects.filter(Class__id = class_id).select_related('day', 'lesson', 'unit', 'classroom')
+    timetable_entries = Timetable.objects.filter(Class__id = class_id, term = Class.objects.get(id = class_id).intake).select_related('day', 'lesson', 'unit', 'classroom')
     serializer = TimetableSerializer(timetable_entries, many=True)
     data = {
         "lessons": [{"id": l.id, "name": l.name, "start": l.start, "end": l.end} for l in lessons],

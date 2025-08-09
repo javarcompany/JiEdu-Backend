@@ -224,11 +224,11 @@ def create_newterm_invoice(student_regno, term_id):
 
         if not fee_narrations.exists():
             print("No fee particulars found for this student and term.")
-            return "No fee particulars found."
+            return "No fee structure for this student."
         
         # Calculate total amount
         total_amount = sum(item.amount for item in fee_narrations)
- 
+
         # Create the invoice without narration first (since it's ManyToMany)
         invoice = Invoice.objects.create(
             student=student,
@@ -239,7 +239,7 @@ def create_newterm_invoice(student_regno, term_id):
             paid_amount=0.00,
             inv_no=generate_invoice_number(target_term)
         )
-  
+        
         # Now attach the many-to-many narration
         invoice.narration.set(fee_narrations)
 
@@ -255,7 +255,6 @@ def create_newterm_invoice(student_regno, term_id):
     
 def process_fee_allocation(reciept_id):
     try:
-
         # Get the amount
         receipt = Receipt.objects.filter(id = reciept_id).first()
         if not receipt:

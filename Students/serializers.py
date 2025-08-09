@@ -70,6 +70,7 @@ class StudentAllocationSerializer(serializers.ModelSerializer):
     sname = serializers.CharField(source='studentno.sname', read_only=True)
     regno = serializers.CharField(source='studentno.regno', read_only=True)
     year_name = serializers.CharField(source='term.year.name', read_only=True)
+    course = serializers.CharField(source='Class.course', read_only=True)
     term_name = serializers.CharField(source='term.name', read_only=True)
     class_name = serializers.CharField(source='Class.name', read_only=True)
     module_name = serializers.CharField(source='module.name', read_only=True)
@@ -85,7 +86,7 @@ class StudentAllocationSerializer(serializers.ModelSerializer):
         fields = ['id', 'studentno', 'module', 'term', 'Class', 'doa', 'module_name',
             'year_name', 'term_name', 'class_name', 'fname', 'mname', 'sname', 'level',
             'regno', 'passport', 'state', 'branch', 'branch_name', 'course', 'course_name',
-            'student_state'
+            'student_state', 'course'
         ]
 
     def get_passport(self, obj):

@@ -10,4 +10,6 @@ urlpatterns = [
     path('api/enroll-face/', FaceEnrollView.as_view(), name='enroll-face'),
     path('api/face-attendance/', activate_camera, name = "face-attendance"),
 
+    path('api/camera_count/', camera_count, name='camera-count'),
+    
 ]

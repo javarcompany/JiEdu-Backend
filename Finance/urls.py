@@ -36,8 +36,13 @@ urlpatterns = [
     path("api/institution-monthly-fee-summary/", InstitutionMonthlyFeeSummary.as_view(), name="institution-monthly-fee-trend"),
     path("api/predict-fee-payments/", predict_fee_payments, name = "predict-fee"),
 
-
     # Equity
     path('api/equity/payment-callback/', equity_payment_callback),
+
+    # Invoice Making
+    path('api/check-fee-structure/', check_fee_structure, name = 'check-fee-structure'),
+    path('api/check-invoice-match/', check_invoice_match_feestructure, name='check-invoice-match'),
+    path('api/create-invoice-student/', create_invoice_student, name='create-invoice'),
+
 
 ]
