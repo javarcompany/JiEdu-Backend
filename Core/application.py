@@ -3,6 +3,10 @@ import random
 from datetime import timedelta, datetime
 import calendar
 from django.utils.timezone import make_aware #type: ignore
+import openpyxl, io #type: ignore
+from django.apps import apps #type: ignore
+from django.http import HttpResponse #type: ignore
+from django.contrib.admin.utils import label_for_field #type: ignore
 
 from .models import *
 
@@ -75,3 +79,33 @@ def get_closing_date(year: int, month_name: str):
     while d.weekday() != 4:  # 4 = Friday
         d -= timedelta(days=1)
     return make_aware(d)
+
+def download_school_template(request):
+    # Create a new Excel workbook
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)  # Remove the default sheet
+
+    # Loop through all models in all installed apps
+    for model in apps.get_models():
+        sheet_name = model.__name__[:31]  # Excel sheet name max 31 chars
+        ws = wb.create_sheet(title=sheet_name)
+
+        # Get field names
+        field_names = [field.name for field in model._meta.get_fields() if not field.is_relation or field.many_to_one]
+
+        # Write header row
+        for col_num, field_name in enumerate(field_names, start=1):
+            ws.cell(row=1, column=col_num, value=label_for_field(field_name, model))
+
+    # Save workbook to memory
+    excel_file = io.BytesIO()
+    wb.save(excel_file)
+    excel_file.seek(0)
+
+    # Create response for download
+    response = HttpResponse(
+        excel_file,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = 'attachment; filename="school_template.xls"'
+    return response

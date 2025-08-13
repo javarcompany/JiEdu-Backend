@@ -228,7 +228,7 @@ class IntakeViewSet(viewsets.ModelViewSet):
     serializer_class = IntakeSerializer
     filter_backends = [ExtendedMultiKeywordSearchFilter]
     pagination_class = StandardResultsSetPagination
-
+    
     def list(self, request, *args, **kwargs):
         if request.query_params.get('all') == 'true':
             queryset = self.filter_queryset(self.get_queryset())
@@ -462,7 +462,11 @@ class InstitutionViewSet(viewsets.ViewSet):
         if 'logo' not in request.FILES:
             data.pop('logo', None)
 
-        serializer = self.serializer_class(instance, data=data, partial=True, context={'request': request})
+        if instance:
+            serializer = self.serializer_class(instance, data=data, partial=True, context={'request': request})
+        else:
+            serializer = self.serializer_class(data=data, context={'request': request})
+        
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -654,4 +658,9 @@ def reset_own_password(request, username):
         return Response({"message": "Password reset and sent via email successfully."})
     except Exception as e:
         return Response({"message": "No Internet Connection"})
-    
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def check_token(request):
+    return Response({"valid": True})  # If user is authenticated, token is valid
+

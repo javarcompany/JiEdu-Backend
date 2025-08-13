@@ -43,7 +43,10 @@ urlpatterns = [
     path('api/check-fee-structure/', check_fee_structure, name = 'check-fee-structure'),
     path('api/check-invoice-match/', check_invoice_match_feestructure, name='check-invoice-match'),
     path('api/create-invoice-student/', create_invoice_student, name='create-invoice'),
-    path('api/create-invoice-classes/', create_invoice_class, name='create-invoice-class'),
+    path('api/create-invoices-classes/', create_invoice_class, name='create-invoice-class'),
+    path('api/create-invoices-course-append/', create_invoice_course_append, name='create-invoice-course-append'),
+    path('api/create-invoices-course-overide/', create_invoice_course_overide, name='create-invoice-course-overide'),
+    path('api/create-invoices-course-new/', create_invoice_course_new, name='create-invoice-course-new'),
 
 
 ]

@@ -41,4 +41,7 @@ urlpatterns = [
     path('api/promote-system/', promote_system, name = "promote-system"),
 
     path("api/reset-password/<str:username>/", reset_own_password, name="reset-own-password"),
+    path("api/check-token/", check_token, name="check-token"),
+    path("api/download-template/", download_school_template, name="download_template"),
+    
 ]

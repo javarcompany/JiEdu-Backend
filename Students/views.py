@@ -119,7 +119,6 @@ def batch_promote_view(request):
     for student_id in student_ids:
         result = promote_student(student_id)
         results.append(result)
-    print(results)
     return Response(results)
 
 @api_view(["GET"])

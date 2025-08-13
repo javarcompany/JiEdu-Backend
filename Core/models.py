@@ -292,6 +292,12 @@ class Class(models.Model):
     state = models.CharField(choices=CLASS_CHOICES, max_length=30, default='Active', blank=True, null=True)
     dor = models.DateTimeField(verbose_name='Date Registered', default=utils.timezone.now, blank=True, null=True) #date of registration
 
+    def save(self, *args, **kwargs):
+        # On create (no ID yet), set reg_intake same as intake
+        if self._state.adding and self.intake:
+            self.reg_intake = self.intake
+        super().save(*args, **kwargs)
+        
     def __str__(self):
         return self.name +'_'+ str(self.reg_intake)
     

@@ -210,11 +210,17 @@ def promote_student(stud_id):
     try:
         current_student = Student.objects.get(id = stud_id)
         current_student_allocation = Allocate_Student.objects.get(studentno = current_student)
-
+        current_term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
         course_duration = CourseDuration.objects.filter(course = current_student.course, module = current_student_allocation.module).first()
         if current_student.state == "Inactive":
             if current_student_allocation.level < course_duration.duration:
-                current_student_allocation.level += 1
+                if current_student_allocation.term.id > current_term.id:
+                    return {"message": f"{current_student.get_full_name()} intake is not yet there"}
+                elif current_student_allocation.term.id == current_term.id:
+                    current_student_allocation += 0
+                else:
+                    current_student_allocation.level += 1
+                current_student_allocation.term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
                 current_student.state = "Active"
                 
         elif current_student.state == "Cleared":
@@ -257,19 +263,16 @@ def deactivate_student(mode):
                 if student.state == "Active":
                     current_student_allocation = Allocate_Student.objects.get(studentno = student)
 
-                    if current_student_allocation.term == current_term:
-                        continue
-                    else:
-                        course_duration = CourseDuration.objects.filter(course = student.course, module = current_student_allocation.module).first()
-                        if current_student_allocation.level == course_duration.duration:
-                            # Check if student has cleared all modules
-                            if current_student_allocation.module.abbr[1:] == student.course.module_duration:
-                                student.state = "Graduated"
-                            else:
-                                student.state = "Cleared"
+                    course_duration = CourseDuration.objects.filter(course = student.course, module = current_student_allocation.module).first()
+                    if current_student_allocation.level == course_duration.duration:
+                        # Check if student has cleared all modules
+                        if current_student_allocation.module.abbr[1:] == student.course.module_duration:
+                            student.state = "Graduated"
                         else:
-                            student.state = "Inactive"
-                        student.save()
+                            student.state = "Cleared"
+                    else:
+                        student.state = "Inactive"
+                    student.save()
             return "All students have been deactivated"
         else:
             student = Student.objects.filter(regno = mode).first()

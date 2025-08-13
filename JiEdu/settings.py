@@ -82,11 +82,11 @@ MIDDLEWARE = [
 CORS_ALLOW_ALL_ORIGINS = True  # or specify React frontend URL in production
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    'AUTH_HEADER_TYPES': ('Bearer',),
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
 ROOT_URLCONF = 'JiEdu.urls'

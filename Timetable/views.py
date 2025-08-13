@@ -74,7 +74,7 @@ class TableSetupViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         start = self.request.data.get('start')
         duration = self.request.data.get('duration')
-
+        print(f"Duration: {duration}")
         duration = parse_duration_string(duration)
         start = datetime.strptime(start, "%H:%M").time()
 

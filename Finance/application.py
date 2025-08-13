@@ -10,7 +10,7 @@ from .configs import api_settings
 from .models import *
 from .fee_manager import FeeManager
 
-from Core.models import Term, Institution
+from Core.models import Term, Institution, CourseDuration
 
 class IllegalPhoneNumberException(Exception):
 	"""
@@ -196,6 +196,108 @@ def create_receipt(attempt_id):
         print(f"Error creating receipt: {str(e)}")
         return None
 
+def create_invoice(student_ids, voteheads, target):
+    try:
+        inst = Institution.objects.first()
+        term = Term.objects.filter(name=inst.current_intake, year=inst.current_year).first()
+
+        students = Allocate_Student.objects.filter(id__in=student_ids)
+        if not students.exists():
+            return {"error": True,
+                    "errMessage": "No valid students found."}
+
+        for student in students:
+            # Create Invoice Items
+            part_ids = []
+            part_name = ''
+            for registry in voteheads:
+                votehead = Account.objects.filter(id = registry["votehead"]).first()
+                amount = registry["amount"]
+                # Create a Fee Particular and add the fee particular id
+                if target == "Course":
+                    part_name = str(student.studentno.course.abbr) + "_" + str(votehead.votehead) + "_" + str(term.name)
+                elif target == "Class":
+                    part_name = str(student.Class.name) + "_" + str(votehead.votehead) + "_" + str(term.name)
+                else:
+                    part_name = str(student.studentno.regno) + "_" + str(votehead.votehead) + "_" + str(term.name)
+                
+                fee_narration = FeeParticular.objects.create(
+                    name = part_name, 
+                    course = student.Class.course, 
+                    module = student.module, 
+                    term = term, 
+                    account = votehead, 
+                    amount = amount,
+                    target = target
+                )
+                part_ids.append(fee_narration)
+                
+            total_amount = sum(int(item.amount) for item in part_ids)
+
+            # Create Invoice
+            invoice = Invoice.objects.create(
+                inv_no = generate_invoice_number(term), 
+                student=student.studentno, 
+                term=term, 
+                amount=total_amount,
+                state="Pending",
+                is_cleared=False,
+                paid_amount=0.00,
+            )
+            invoice.narration.set(part_ids)
+            invoice.save()
+
+        return {
+            "success": True
+        }
+    except Exception as e:
+        print(f"[ERROR]: {e}")
+        return {
+            "error":True,
+            "errMessage": e}
+
+def create_feestructure(course_id, voteheads):
+    try:
+        inst = Institution.objects.first()
+        term = Term.objects.filter(name=inst.current_intake, year=inst.current_year).first()
+
+        course_duration = CourseDuration.objects.filter(id=course_id).first()
+        if not course_duration:
+            return {
+                "error": True,
+                "errorMessage": "No Course Found!"
+            }
+        
+        feenarration = []
+        
+        for registry in voteheads:
+            votehead = Account.objects.filter(id = registry["votehead"]).first()
+            amount = registry["amount"]
+            # Create a Fee Particular and add the fee particular id
+            part_name = str(course_duration.course.abbr) + "_" + str(votehead.votehead) + "_" + str(term.name)
+
+            fee_narration = FeeParticular.objects.create(
+                name = part_name, 
+                course = course_duration.course, 
+                module = course_duration.module, 
+                term = term, 
+                account = votehead, 
+                amount = amount,
+                target = "Course"
+            )
+            feenarration.append(fee_narration.id)
+        return {
+            "success": True,
+            "successMessage": f"{course_duration.course.abbr} {course_duration.module} Fee Structure Created Successfuly!",
+            "feenarration": feenarration
+        }
+            
+    except Exception as e:
+        print(f"[ERROR]: {e}")
+        return {
+            "error":True,
+            "errMessage": e}
+
 def create_newterm_invoice(student_regno, term_id):
     try:
         target_term = Term.objects.get(id=term_id)
@@ -219,7 +321,8 @@ def create_newterm_invoice(student_regno, term_id):
         fee_narrations = FeeParticular.objects.filter(
             course=student.course,
             module=module,
-            term=target_term
+            term=target_term,
+            target = "Course"
         )
 
         if not fee_narrations.exists():
@@ -242,6 +345,53 @@ def create_newterm_invoice(student_regno, term_id):
         
         # Now attach the many-to-many narration
         invoice.narration.set(fee_narrations)
+
+        return invoice
+    
+    except Allocate_Student.DoesNotExist:
+        print(f"Student with regno {student_regno} not found in allocation.")
+        return f"Student with regno {student_regno} not found in allocation."
+
+    except Exception as e:
+        print(f"Unexpected error creating invoice: {str(e)}")
+        return f"Error: {str(e)}"
+
+def create_new_invoice(student_regno, term_id, fee_narration_ids):
+    try:
+        target_term = Term.objects.get(id=term_id)
+    except Term.DoesNotExist:
+        print("Current term not found.")
+        return "Current term not found."
+
+    try:
+        # Get the allocated student, including student and module info
+        allocated_student = Allocate_Student.objects.get(studentno__regno=student_regno)
+        student = allocated_student.studentno  # This is the actual Student instance
+        module = allocated_student.module
+
+        # Check whether the student has a feestructure otherwise make a structure with the new changes else make a new invoice with the new changes
+        fee_structure = Invoice.objects.filter(student = student, term = target_term)
+        if fee_structure:
+            # Calculate total amount
+            fee_narrations = FeeParticular.objects.filter (id__in = fee_narration_ids)
+        else:
+            fee_narrations = FeeParticular.objects.filter(course = student.course, module = module, term = target_term, target = "Course")
+        
+        total_amount = sum(item.amount for item in fee_narrations)
+        # Create the invoice without narration first (since it's ManyToMany)
+        invoice = Invoice.objects.create(
+            student=student,
+            term=target_term,
+            amount=total_amount,
+            state="Pending",
+            is_cleared=False,
+            paid_amount=0.00,
+            inv_no=generate_invoice_number(target_term)
+        )
+          
+        # Now attach the many-to-many narration
+        invoice.narration.set(fee_narrations)
+        invoice.save()
 
         return invoice
     
