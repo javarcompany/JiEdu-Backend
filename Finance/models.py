@@ -110,6 +110,7 @@ class FeeParticular(BaseModel):
     class Meta:
         verbose_name = "Fee Particular"
         verbose_name_plural = "Fee Particulars"
+        unique_together = ("name", "course", "module", "term")
 
 class Invoice(BaseModel):
     inv_no = models.CharField(max_length=30)

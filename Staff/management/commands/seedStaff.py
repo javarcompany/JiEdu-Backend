@@ -8,7 +8,7 @@ from django.utils import timezone #type: ignore
 
 from Core.models import Branch, Department
 from Staff.models import Staff
-from Core.application import generate_password
+from Core.application import generate_password, generate_username
 from Core.models import User, UserProfile, Group
 
 class Command(BaseCommand):
@@ -18,7 +18,8 @@ class Command(BaseCommand):
         # ===============================
         # SETTINGS
         # ===============================
-        total_staff_to_create = random.randint(40, 65)
+        min_per_dept_branch = 20
+        max_per_dept_branch = 30
 
         # Name pools
         male_first_names = [
@@ -94,80 +95,87 @@ class Command(BaseCommand):
         # STAFF CREATION
         # ===============================
         Staff.objects.all().delete()
-        User
-        for i in range(1, total_staff_to_create + 1):
-            gender = random.choice(["Male", "Female"])
+        total_created = 0
+        reg_counter = 1
 
-            # Ensure unique (fname, mname, sname)
-            while True:
+        for branch in branches:
+            for department in departments:
+                lecturers_to_create = random.randint(min_per_dept_branch, max_per_dept_branch)
+                    
+                for _ in range(lecturers_to_create):
+                    gender = random.choice(["Male", "Female"])
 
-                if gender == "Male":
-                    fname = random.choice(male_first_names)
-                    mname = random.choice(male_middle_names)
-                else:
-                    fname = random.choice(female_first_names)
-                    mname = random.choice(female_middle_names)
+                    # Ensure unique (fname, mname, sname)
+                    while True:
 
-                sname = random.choice(surnames)
-                
-                if (fname, mname, sname) not in used_names:
-                    used_names.add((fname, mname, sname))
-                    break
+                        if gender == "Male":
+                            fname = random.choice(male_first_names)
+                            mname = random.choice(male_middle_names)
+                        else:
+                            fname = random.choice(female_first_names)
+                            mname = random.choice(female_middle_names)
 
-            passport_path = download_passport(gender, i)
+                        sname = random.choice(surnames)
+                        
+                        if (fname, mname, sname) not in used_names:
+                            used_names.add((fname, mname, sname))
+                            break
 
-            staff = Staff.objects.create(
-                regno=f"JI/{i:03}/STF/EDU",
-                fname=fname,
-                mname=mname,
-                sname=sname,
-                gender=gender,
-                nat_id=generate_nat_id(),
-                phone=generate_phone(),
-                email=f"{fname.lower()}.{sname.lower()}@jiedu.com",
-                branch=random.choice(branches),
-                department=random.choice(departments),
-                weekly_hours=random.randint(15, 30),
-                dob=timezone.now().replace(year=1980 + random.randint(0, 25)),
-                state="Active"
-            )
+                    passport_path = download_passport(gender, reg_counter)
 
-            # Open the downloaded image as a Django File so ImageField saves it correctly
-            with open(passport_path, "rb") as img_file:
-                staff.passport.save(
-                    f"{staff.regno}.jpg",
-                    File(img_file),
-                    save=True
-                )
+                    staff = Staff.objects.create(
+                        regno=f"JI/{reg_counter:03}/STF/EDU",
+                        fname=fname,
+                        mname=mname,
+                        sname=sname,
+                        gender=gender,
+                        nat_id=generate_nat_id(),
+                        phone=generate_phone(),
+                        email=f"{fname.lower()}.{sname.lower()}@jiedu.com",
+                        branch=branch,
+                        department=department,
+                        weekly_hours=random.randint(15, 30),
+                        dob=timezone.now().replace(year=1980 + random.randint(0, 25)),
+                        state="Active"
+                    )
 
+                    # Open the downloaded image as a Django File so ImageField saves it correctly
+                    with open(passport_path, "rb") as img_file:
+                        staff.passport.save(
+                            f"{staff.regno}.jpg",
+                            File(img_file),
+                            save=True
+                        )
 
-            # Generate a unique username
-            username = staff.regno or staff.email.split('@')[0]
+                    # Generate a unique username
+                    username = staff.regno or generate_username(staff.fname, "", staff.sname)
 
-            # Generate a secure password
-            password = generate_password()
+                    # Generate a secure password
+                    password = generate_password()
 
-            # Create the user
-            user = User.objects.create_user(
-                username=username, password=password,
-                first_name=staff.fname, last_name=staff.sname,
-                email=staff.email, is_active=True
-            )
-            user.save()
+                    # Create the user
+                    user = User.objects.create_user(
+                        username=username, password=password,
+                        first_name=staff.fname, last_name=staff.sname,
+                        email=staff.email, is_active=True
+                    )
+                    user.save()
 
-            userprofile = UserProfile.objects.create(
-                user = user, picture = staff.passport,
-                phone = staff.phone, branch = staff.branch
-            )
-            userprofile.save()
+                    userprofile = UserProfile.objects.create(
+                        user = user, picture = staff.passport,
+                        phone = staff.phone, branch = staff.branch
+                    )
+                    userprofile.save()
 
-            staff.user = userprofile
-            staff.save()
+                    staff.user = userprofile
+                    staff.save()
 
-            # Assign user to closest matching group (e.g., "Staff" or "Class Tutor")
-            group = Group.objects.filter(name__icontains="Lecturer").first()
-            if group:
-                user.groups.add(group)
+                    # Assign user to closest matching group (e.g., "Staff" or "Class Tutor")
+                    group = Group.objects.filter(name__icontains="Lecturer").first()
+                    if group:
+                        user.groups.add(group)
 
+                    reg_counter += 1
+                    total_created += 1
 
-        print(f"✅ Created {total_staff_to_create} unique staff records with passports, random nat_ids, and random phones.")
+        print(f"✅ Created {total_created} lecturers (20-30 per department in each branch).")

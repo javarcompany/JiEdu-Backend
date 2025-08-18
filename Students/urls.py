@@ -17,8 +17,9 @@ urlpatterns = [
     path('api/check-application-status/', check_application_status, name='check-application-status'),
     path('api/approve-application/<int:app_id>/', approve_new_application, name="approve-application"),
     path('application/enroll/<int:temp_no>/', enroll_new_application, name="enroll-application"),
-    path('api/applications/approve-batch/', batch_approve_view, name='approve-batch'),
+    path('api/application/approve-batch-applications/', batch_approve_view, name='approve-batch'),
     path('api/decline-application/<int:app_id>/', decline_new_application, name="decline-application"),
+    path('api/application/decline-batch-applications/', batch_decline_view, name='decline-batch'),
     
     path('api/allocate/allocate-batch/', batch_allocate_view, name='allocate-batch'),
     path('api/allocate-student/<int:stud_id>/<int:class_id>/', allocate_view, name="allocate-student"),

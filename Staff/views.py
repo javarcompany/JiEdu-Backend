@@ -9,7 +9,7 @@ from django.conf import settings #type: ignore
  
 from rest_framework.pagination import PageNumberPagination #type: ignore
  
-from Core.application import generate_password
+from Core.application import generate_password, generate_username
 from Core.serializers import ClassSerializer
 from Core.models import Institution
 from Timetable.models import Timetable
@@ -111,6 +111,10 @@ class StaffViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'], url_path='staff_counts')
@@ -137,7 +141,7 @@ class StaffViewSet(viewsets.ModelViewSet):
         staff = serializer_class.save()
 
         # Generate a unique username
-        username = staff.regno or staff.email.split('@')[0]
+        username = generate_username(staff.fname, staff.sname, "")
 
         # Generate a secure password
         password = generate_password()
@@ -195,6 +199,10 @@ class StaffWorkloadViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
 
 class ClassTutorViewSet(viewsets.ModelViewSet):
@@ -208,6 +216,10 @@ class ClassTutorViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
 
 @api_view(["GET"])

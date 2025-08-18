@@ -14,8 +14,19 @@ def generate_password(length=8):
     chars = string.ascii_letters + string.digits + "!@#$%^&*"
     return ''.join(random.choices(chars, k=length))
 
-def generate_username(app):
-    return app.email.split('@')[0] + str(app.pk)
+def generate_username(firstname, middlename, surname):
+    # Step 1: Take initials
+    initials = (firstname[:random.randint(1, 2)] + (middlename[:random.randint(1, 2)] if middlename else "") + surname[:random.randint(1, 3)]).lower()
+
+    # Step 2: Ensure it's 3–4 letters before number
+    initials = initials[:5]
+
+    # Step 3: Append number until unique
+    while True:
+        num = ''.join(random.choices(string.digits, k=2))  # 2-digit number
+        username = f"{initials}{num}"
+        if not User.objects.filter(username=username).exists():
+            return username
 
 def get_or_create_module_by_name(module_input_name: str):
     # Normalize the input

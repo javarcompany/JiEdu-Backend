@@ -60,7 +60,6 @@ class ExtendedMultiKeywordSearchFilter(BaseFilterBackend):
 
         # Multi-Level Search
         fields = get_searchable_fields(model)
-        print(fields)
 
         # Build query
         for keyword in keywords:

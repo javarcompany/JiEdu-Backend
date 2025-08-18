@@ -8,7 +8,7 @@ from datetime import timedelta, date
 import string
 import random
 
-from Core.application import generate_password
+from Core.application import generate_password, generate_username
 from Core.models import UserProfile, User, CourseDuration, Institution, Term
 
 from Finance.application import create_newterm_invoice
@@ -43,6 +43,7 @@ def approve_application(application_id):
         temp_regno = generate_temp_regno()
 
         application = Application.objects.get(id=application_id)
+        print(f"[APPLICATION]: {temp_regno}")
 
         if application.state != 'Pending':
             return {'error': 'Already processed!'}
@@ -59,12 +60,15 @@ def approve_application(application_id):
                                      valid_date = expiry_date
                         )
         newCode.save()
-        
+
         # Send Email/ SMS Logic
-        message = f"{application.fname} {application.mname}'s application have been approved. The student has been assigned temporary number: {temp_regno}"
-        send_mail("COURSE APPLICATION", message, None, [settings.ADMIN_EMAIL,])
-        message = f"Dear {application.fname} {application.mname}, \nYour application have been approved. \nKindly click on the link below to enroll for your course.\n {settings.DOMAIN_NAME}/application/enroll/{temp_regno[11:]}"
-        send_mail("COURSE APPLICATION", message, None, [application.email, ])
+        try:
+            message = f"{application.fname} {application.mname}'s application have been approved. The student has been assigned temporary number: {temp_regno}"
+            send_mail("COURSE APPLICATION", message, None, [settings.ADMIN_EMAIL,])
+            message = f"Dear {application.fname} {application.mname}, \nYour application have been approved. \nKindly click on the link below to enroll for your course.\n {settings.DOMAIN_NAME}/application/enroll/{temp_regno[11:]}"
+            send_mail("COURSE APPLICATION", message, None, [application.email, ])
+        except Exception as e:
+            print(f"[ERROR]: {e}")
 
         return {'message': f"Application Approved, Temporary Reg No.: {temp_regno}"}
 
@@ -73,6 +77,9 @@ def approve_application(application_id):
 
 def enroll_student(reg_no):
     try:
+        if len(str(reg_no)) < 6:
+            reg_no = str(reg_no).zfill(6)
+
         regno = "TEMP/JIEDU/" + str(reg_no)
         print(regno)
 
@@ -112,7 +119,7 @@ def enroll_student(reg_no):
         )
 
         # Generate username and password
-        username = str(applicant.fname)[:4] + str(applicant.sname)[0:2]
+        username = generate_username(applicant.fname, applicant.mname, applicant.sname)
         password = generate_password()
 
         # Create user
@@ -135,12 +142,17 @@ def enroll_student(reg_no):
         applicant.state = "Joined"
         applicant.save()
 
-        # Send Email/ SMS
-        message = f"{applicant.fname} {applicant.sname} have joined the school. The student has been assigned a permanent registration number: {new_perm_regno}"
-        send_mail("COURSE APPLICATION", message, None, [settings.ADMIN_EMAIL,])
-        message = f"Dear {applicant.fname} {applicant.mname}, \nYour have successfuly joined our school. \n\nYour Login Credential: \nUsername: {username}\nPassword: {password}"
-        send_mail("COURSE APPLICATION", message, None, [applicant.email, ])
+        # Create Fee Structure
+        invoice = create_newterm_invoice(new_perm_regno, Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year).id)
 
+        try:
+            # Send Email/ SMS
+            message = f"{applicant.fname} {applicant.sname} have joined the school. The student has been assigned a permanent registration number: {new_perm_regno}"
+            send_mail("COURSE APPLICATION", message, None, [settings.ADMIN_EMAIL,])
+            message = f"Dear {applicant.fname} {applicant.mname}, \nYour have successfuly joined our school. \n\nYour Login Credential: \nUsername: {username}\nPassword: {password}"
+            send_mail("COURSE APPLICATION", message, None, [applicant.email, ])
+        except Exception as e:
+            print(f"[ERROR]: {e}")
         return {'message': f"Student fully registered Username: {username} Password: {password}"}
 
     except Application.DoesNotExist:
@@ -158,16 +170,19 @@ def decline_application(application_id):
         application.save()
          
         # Send Email/ SMS Logic
-        message = f"{application.fname} {application.mname}'s application have been declined."
-        send_mail("COURSE APPLICATION", message, None, [settings.ADMIN_EMAIL,])
-        message = f"Dear {application.fname} {application.mname}, \nWe regret to inform you that your application have been declined."
-        send_mail("COURSE APPLICATION", message, None, [application.email, ])
+        try:
+            message = f"{application.fname} {application.mname}'s application have been declined."
+            send_mail("COURSE APPLICATION", message, None, [settings.ADMIN_EMAIL,])
+            message = f"Dear {application.fname} {application.mname}, \nWe regret to inform you that your application have been declined."
+            send_mail("COURSE APPLICATION", message, None, [application.email, ])
+        except Exception as e:
+            print(f"[ERROR]: {e}")
 
         return {'message': f"Application Declined!"}
 
     except Application.DoesNotExist:
         return {'error': 'Application NOT found!'}
-
+ 
 # Allocate Student
 def allocate_student(stud_id, class_id):
     try:

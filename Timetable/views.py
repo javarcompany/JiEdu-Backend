@@ -56,6 +56,10 @@ class DayViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
     
 class TableSetupViewSet(viewsets.ModelViewSet):
@@ -69,6 +73,10 @@ class TableSetupViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
 
     def perform_create(self, serializer):
@@ -96,6 +104,10 @@ class TableViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
 
 @api_view(['GET'])
@@ -260,6 +272,12 @@ def allocate_timetable(request, class_id, day_id):
     )
 
     # Update Staffs Load State
+    currentTable = Timetable.objects.filter(term = currentTerm, 
+                                            Class = class_object,day_id = day_id,
+                                            lesson_id = lesson_id,
+                                            unit_id = workload_id,
+                                            classroom_id = classroom_id
+                                            ).first()
     staff = currentTable.unit.regno
     staff.used_hours += 2
     load_ratio = staff.used_hours / staff.weekly_hours

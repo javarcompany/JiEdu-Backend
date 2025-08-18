@@ -40,16 +40,8 @@ class IntakeAdmin(admin.ModelAdmin):
 
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ("name","abbr","dor", "view_staff_link")
-    def view_staff_link(self, obj):
-        count = obj.staff_set.count()
-        url = (
-            reverse("admin:Core_staff_changelist")+ "?" + urlencode({"courses__id": f"{obj.id}"})
-        )
-        return format_html('<a href="{}">{} Staffs</a>', url, count)
-
-    view_staff_link.short_description = "Staffs"
-
+    list_display = ("name","abbr","dor")
+    
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
     list_display = ("name","abbr","dor","department")
@@ -60,7 +52,7 @@ class UnitAdmin(admin.ModelAdmin):
 
 @admin.register(Class)
 class ClassAdmin(admin.ModelAdmin):
-    list_display = ("name","course","reg_intake","module","dor")
+    list_display = ("name","course", "branch", "reg_intake","module","dor")
 
 @admin.register(Classroom)
 class ClassroomAdmin(admin.ModelAdmin):

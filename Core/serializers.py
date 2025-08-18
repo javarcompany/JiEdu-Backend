@@ -137,10 +137,11 @@ class CourseDurationSerializer(serializers.ModelSerializer):
         fields = ['id', 'course', 'course_name', 'course_abbr', 'course_code', 'course_department_name', 'course_department_abbr', 'module_name', 'module_abbr', 'duration']
 
 class CourseSerializer(serializers.ModelSerializer):
+    department_name = serializers.CharField(source = 'department.name')
     durations = CourseDurationSerializer(source='courseduration_set', many=True)
     class Meta:
         model = Course
-        fields = '__all__'
+        fields = ['id', 'code', 'name', 'abbr', 'department', 'module_duration', 'department_name', 'durations']
 
 class CourseCreateSerializer(serializers.Serializer):
     name = serializers.CharField()
@@ -154,10 +155,10 @@ class CourseCreateSerializer(serializers.Serializer):
     )
 
     def create(self, validated_data):
-        module_durations = validated_data.pop("module_durations")
+        durations = validated_data.pop("durations")
         course = Course.objects.create(**validated_data)
 
-        for i, duration in enumerate(module_durations):
+        for i, duration in enumerate(durations):
             CourseDuration.objects.create(course=course, module=get_or_create_module_by_name(f"{i + 1}"), duration=duration)
 
         return course
@@ -192,12 +193,13 @@ class ClassSerializer(serializers.ModelSerializer):
     year_name = serializers.CharField(source='intake.year.name', read_only=True)
     intake_name = serializers.CharField(source='intake.name', read_only=True)
     branch_name = serializers.CharField(source='branch.name', read_only=True)
+    department = serializers.CharField(source='course.department.id', read_only=True)
     
     class Meta:
         model = Class
         fields = ['id', 'name', 'course', 'intake', 'branch', 'module', 
                 'level', 'state', 'dor', 'course_name', 'module_name',
-                'year_name', 'branch_name', 'intake_name'
+                'year_name', 'branch_name', 'intake_name', 'department'
         ]
 
 class ClassroomSerializer(serializers.ModelSerializer):

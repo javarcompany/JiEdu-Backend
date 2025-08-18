@@ -103,7 +103,20 @@ def batch_approve_view(request):
         result['id'] = app_id
         results.append(result)
 
-    return Response({'results': results})
+    return Response(results)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def batch_decline_view(request):
+    application_ids = request.data.get('application_ids', [])
+    results = []
+    print(f"APPLICATION IDs: {application_ids}")
+    for app_id in application_ids:
+        result = decline_application(app_id)
+        result['id'] = app_id
+        results.append(result)
+
+    return Response(results)
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
@@ -229,6 +242,10 @@ class StudentViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def list(self, request, *args, **kwargs):
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         if request.query_params.get('all') == 'true':
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
@@ -258,6 +275,10 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def list(self, request, *args, **kwargs):
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         if request.query_params.get('all') == 'true':
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
@@ -330,7 +351,11 @@ class StudentAllocationViewSet(viewsets.ModelViewSet):
                 )
                 serializer = self.get_serializer(queryset, many=True)
                 return Response({'results': serializer.data})
-    
+
+            no_pagination = request.query_params.get('no_pagination')
+            if no_pagination == 'true':
+                self.pagination_class = None  # disables pagination for this request
+                
             return super().list(request, *args, **kwargs)
         
     @action(detail=False, methods=['get'], url_path='class_counts')

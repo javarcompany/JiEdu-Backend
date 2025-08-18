@@ -326,6 +326,10 @@ class AccessTokenViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
     
     serializer_class = AccessTokenSerializer
@@ -340,6 +344,11 @@ class PaymentMethodViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
     
     serializer_class = PaymentMethodSerializer
@@ -362,7 +371,11 @@ class WalletViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset().filter(blocked=False))
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
-    
+        
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
 
 class PriorityLevelViewSet(viewsets.ModelViewSet):
@@ -375,6 +388,10 @@ class PriorityLevelViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
     
     serializer_class = PriorityLevelSerializer
@@ -389,6 +406,10 @@ class AccountViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
     
     serializer_class = AccountSerializer
@@ -403,6 +424,10 @@ class FeeParticularViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
     
     serializer_class = FeeParticularSerializer
@@ -417,6 +442,10 @@ class FeeStatusViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
     
     serializer_class = FeeStatusSerializer
@@ -431,6 +460,10 @@ class ReceiptViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
     
     serializer_class = ReceiptSerializer
@@ -445,6 +478,10 @@ class TransactionViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
     
     serializer_class = TransactionSerializer
@@ -459,6 +496,10 @@ class PaymentAttemptViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
     
     serializer_class = PaymentAttemptSerializer
@@ -473,6 +514,10 @@ class PaymentPlanViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
     
     serializer_class = PaymentPlanSerializer
@@ -949,7 +994,7 @@ def class_income_statement(request):
         course_classes = Class.objects.filter(
             course = course,
             intake = term,   # 🔁 Change this line if you use a different term-related field
-        ).order_by("name")
+        ).order_by("branch", "name")
 
         # Group students by class
         allocations = Allocate_Student.objects.filter(Class__in=course_classes).select_related("studentno", "Class")
@@ -990,6 +1035,7 @@ def class_income_statement(request):
             response_data.append({
                 "class_id": class_id,
                 "class_name": cls.name,
+                "branch": cls.branch.name,
                 "total_invoiced": float(total_invoiced),
                 "total_paid": float(total_paid),
                 "total_balance": float(balance),

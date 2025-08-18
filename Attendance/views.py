@@ -42,6 +42,10 @@ class StudentRegisterViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
 
 @api_view(["GET"])
@@ -105,6 +109,10 @@ class AttendanceModeViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        no_pagination = request.query_params.get('no_pagination')
+        if no_pagination == 'true':
+            self.pagination_class = None  # disables pagination for this request
+            
         return super().list(request, *args, **kwargs)
     
 @api_view(['GET'])

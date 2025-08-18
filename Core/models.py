@@ -161,6 +161,7 @@ class Intake(models.Model):
     class Meta:
         verbose_name = "Intake"
         verbose_name_plural = "Intakes"
+        unique_together = ("openingMonth", "closingMonth")
  
 class Institution(models.Model):
     logo = ImageField(upload_to='logo/', blank=True, null=True)
@@ -303,7 +304,7 @@ class Class(models.Model):
     
     class Meta:
         verbose_name_plural = "Class"
-        unique_together = ("name", "reg_intake")
+        unique_together = ("name", "reg_intake", "branch")
 
 class Classroom(models.Model):
     name = models.CharField(max_length=255, unique=True)
