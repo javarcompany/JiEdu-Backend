@@ -100,8 +100,25 @@ def enroll_student(reg_no):
         # Create a permanent Reg No.
         new_perm_regno = generate_perm_reg()
 
+        # Generate username and password
+        username = generate_username(applicant.fname, applicant.mname, applicant.sname)
+        password = generate_password()
+
+        # Create user
+        user = User.objects.create_user(
+            username=username, password=password,
+            first_name=applicant.fname, last_name=applicant.sname,
+            email=applicant.email, is_active=True
+        )
+        # Create UserProfile if applicable
+        user_profile = UserProfile.objects.create(user=user, branch=applicant.branch, phone=applicant.phone, picture=applicant.passport)
+        # Assign to Students group
+        students_group = Group.objects.get(name="Students")
+        user.groups.add(students_group)
+
         # Create a new Student
         new_student = Student.objects.update_or_create(
+            user = user_profile,
             regno = new_perm_regno, fname = applicant.fname, mname = applicant.mname,
             sname = applicant.sname, gender = applicant.gender, dob = applicant.dob,
             nat_id = applicant.nat_id, phone = applicant.phone, email = applicant.email,
@@ -117,25 +134,6 @@ def enroll_student(reg_no):
             studentno = currentstudent, module = Module.objects.order_by('id').first(),
             term = app_term, level = 1
         )
-
-        # Generate username and password
-        username = generate_username(applicant.fname, applicant.mname, applicant.sname)
-        password = generate_password()
-
-        # Create user
-        user = User.objects.create_user(
-            username=username, password=password,
-            first_name=applicant.fname, last_name=applicant.sname,
-            email=applicant.email, is_active=True
-        )
-        # Create UserProfile if applicable
-        UserProfile.objects.create(user=user, branch=applicant.branch, phone=applicant.phone, picture=applicant.passport)
-        # Assign to Students group
-        students_group = Group.objects.get(name="Students")
-        user.groups.add(students_group)
-
-        # new_student.user = user
-        # new_student.save()
 
         # Update Application
         applicant.regno = new_perm_regno

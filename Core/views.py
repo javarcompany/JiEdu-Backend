@@ -648,6 +648,8 @@ def reset_own_password(request, username):
 
         # Generate a random password
         new_password = generate_password()
+        print("User name: ", user.username)
+        print("New Password: ", new_password)
 
         # Set the new password
         user.set_password(new_password)

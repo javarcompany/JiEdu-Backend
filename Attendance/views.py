@@ -159,6 +159,7 @@ def check_current_lesson(request):
 @api_view(["GET"])
 def search_student_attendance(request):
     class_id = request.query_params.get('class_id')
+    
     # Initial Load
     if class_id == "":
         students = Allocate_Student.objects.all()
@@ -258,6 +259,8 @@ def mark_attendance(request):
 @api_view(["GET"])
 def get_student_analysis(request):
     student_id = request.query_params.get('student_id')
+    if (not student_id) or (student_id == "0"):
+        student_id = Student.objects.first().id
     
     # Validate and retrieve student
     try:
@@ -333,6 +336,8 @@ def get_student_analysis(request):
 @api_view(["GET"])
 def get_student_unit_analysis(request):
     student_id = request.query_params.get('student_id')
+    if (not student_id) or (student_id == "0"):
+        student_id = Student.objects.first().id
     
     # Validate and retrieve student
     try:
@@ -396,6 +401,8 @@ def get_student_unit_analysis(request):
 @api_view(["GET"])
 def get_student_lesson_analysis(request):
     student_id = request.query_params.get('student_id')
+    if (not student_id) or (student_id == "0"):
+        student_id = Student.objects.first().id
 
     try:
         currentStudent = Student.objects.get(id=student_id) if student_id else Student.objects.first()
@@ -467,6 +474,8 @@ def get_student_lesson_analysis(request):
 @api_view(["GET"])
 def student_weekly_attendance_trend(request):
     student_id = request.query_params.get('student_id')
+    if (not student_id) or (student_id == "0"):
+        student_id = Student.objects.first().id
 
     # Validate and retrieve student
     try:
@@ -535,6 +544,8 @@ def student_weekly_attendance_trend(request):
 @api_view(["GET"])
 def get_student_module_summary_report(request):
     student_id = request.query_params.get("student_id")
+    if (not student_id) or (student_id == "0"):
+        student_id = Student.objects.first().id
 
     try:
         student = Student.objects.get(id=student_id)
@@ -591,6 +602,8 @@ def get_student_module_summary_report(request):
 @api_view(["GET"])
 def get_student_weekday_attendance_report(request):
     student_id = request.query_params.get("student_id")
+    if (not student_id) or (student_id == "0"):
+        student_id = Student.objects.first().id
 
     try:
         student = Student.objects.get(id=student_id)
@@ -654,6 +667,8 @@ def get_student_weekday_attendance_report(request):
 @api_view(["GET"])
 def get_class_attendance_summary(request):
     class_id = request.query_params.get("class_id")
+    if (not class_id) or (class_id == "0"):
+        class_id = Class.objects.first().id
 
     if not class_id:
         return Response({"error": "Missing class_id parameter"}, status=400)
@@ -714,6 +729,8 @@ def get_class_attendance_summary(request):
 @api_view(["GET"])
 def get_top3_attendance_report(request):
     class_id = request.query_params.get("class_id")
+    if (not class_id) or (class_id == "0"):
+        class_id = Class.objects.first().id
 
     if not class_id:
         return Response({"error": "class_id is required"}, status=400)
@@ -761,7 +778,9 @@ def get_top3_attendance_report(request):
 @api_view(["GET"])
 def class_weekday_attendance_summary(request):
     class_id = request.query_params.get("class_id")
-
+    if (not class_id) or (class_id == "0"):
+        class_id = Class.objects.first().id
+        
     try:
         class_obj = Class.objects.get(id=class_id)
     except (Institution.DoesNotExist, Term.DoesNotExist, Class.DoesNotExist):
@@ -792,9 +811,9 @@ def class_weekday_attendance_summary(request):
 @api_view(["GET"])
 def class_unit_attendance_summary(request):
     class_id = request.query_params.get("class_id")
-    if not class_id:
-        return Response({"error": "Missing class_id"}, status=400)
-
+    if (not class_id) or (class_id == "0"):
+        class_id = Class.objects.first().id
+    
     try:
         class_obj = Class.objects.get(id=class_id)
     except Class.DoesNotExist:
@@ -838,6 +857,8 @@ def class_unit_attendance_summary(request):
 @api_view(["GET"])
 def course_attendance_summary(request):
     course_id = request.query_params.get("course_id")
+    if (not course_id) or (course_id == "0"):
+        course_id = Course.objects.first().id
 
     if not course_id:
         return Response({"error": "Missing course_id parameter"}, status=400)
@@ -898,6 +919,9 @@ def course_attendance_summary(request):
 @api_view(["GET"])
 def course_unit_attendance_summary(request):
     course_id = request.query_params.get("course_id")
+    if (not course_id) or (course_id == "0"):
+        course_id = Course.objects.first().id
+
     if not course_id:
         return Response({"error": "course_id is required"}, status=400)
 
@@ -936,6 +960,8 @@ def course_unit_attendance_summary(request):
 @api_view(["GET"])
 def course_weekday_attendance_summary(request):
     course_id = request.query_params.get("course_id")
+    if (not course_id) or (course_id == "0"):
+        course_id = Course.objects.first().id
 
     if not course_id:
         return Response({"error": "course_id is required"}, status=400)
@@ -974,6 +1000,8 @@ def course_weekday_attendance_summary(request):
 @api_view(["GET"])
 def course_class_average_weekday_attendance(request):
     course_id = request.query_params.get("course_id")
+    if (not course_id) or (course_id == "0"):
+        course_id = Course.objects.first().id
 
     if not course_id:
         return Response({"error": "course_id is required"}, status=400)
@@ -1019,6 +1047,8 @@ def course_class_average_weekday_attendance(request):
 @api_view(["GET"])
 def course_unit_attendance_breakdown(request):
     course_id = request.query_params.get("course_id")
+    if (not course_id) or (course_id == "0"):
+        course_id = Course.objects.first().id
 
     try:
         course = Course.objects.get(id=course_id)
@@ -1065,6 +1095,8 @@ def course_unit_attendance_breakdown(request):
 @api_view(["GET"])
 def course_attendance_overview(request):
     course_id = request.query_params.get("course_id")
+    if (not course_id) or (course_id == "0"):
+        course_id = Course.objects.first().id
 
     try:
         course = Course.objects.get(id=course_id)

@@ -1,3 +1,4 @@
+
 from rest_framework import viewsets, status, permissions #type: ignore
 from rest_framework.response import Response #type: ignore
 from rest_framework.decorators import api_view, permission_classes, action #type: ignore
@@ -15,12 +16,123 @@ import calendar
 
 from Core.models import Department, Institution, Unit
 from Core.serializers import UnitSerializer
+from Timetable.models import Timetable
 
 from .models import *
 from .serializers import *
 from .filters import *
 from .application import *
 
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_student_primary_data(request):
+    username = request.user.username
+    current_user = User.objects.get(username=username)
+    current_student = Student.objects.get(email = current_user.email)
+
+    data = {
+        "student_id": current_student.id,
+        "user_id": current_user.id,
+    }
+    return Response(data)
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def get_student_units(request):
+    student_regno = request.query_params.get("student_regno")
+
+    student = Allocate_Student.objects.filter(studentno__regno = student_regno).first()
+    if not student:
+        return Response({"units": []}, status=404)
+    
+    current_term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
+    if not current_term:
+        return Response({"units": []}, status=404)
+    
+    # Get student's Timetable
+    student_timetable = Timetable.objects.filter(Class=student.Class, term = current_term)
+
+    units_data = []
+    # Get Students Units from the courses and Module
+    student_units = Unit.objects.filter(course = student.studentno.course, module = student.module)
+    for unit in student_units:
+        # Get Lecturer
+        unit_tables = student_timetable.filter(unit__unit = unit).first()
+        if unit_tables:
+            lecturer = unit_tables.unit.regno.get_full_name()
+        else:
+            lecturer = "Not Assigned"
+
+        # Get Number of Lessons
+        unit_tables = student_timetable.filter(unit__unit = unit)
+        total_lessons = 0
+        if unit_tables.exists():
+            # Check the opening date and closing date of the intake
+            opening_date = current_term.openingDate
+            closing_date = current_term.closingDate
+
+            # Within the range of opening and closing date check how many times the units will appear as per the timetable
+            for unit_table in unit_tables:
+                total_lessons += 1
+            
+
+        units_data.append({
+            "id": unit.id,
+            "name": unit.name,
+            "uncode": unit.uncode,
+            "lessons": total_lessons,
+            "trainer": lecturer,
+        })
+
+    return Response({"units": units_data})
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def get_student_lesson_counts(request):
+    student_regno = request.query_params.get("student_regno")
+
+    student = Allocate_Student.objects.filter(studentno__regno = student_regno).first()
+    if not student:
+        return Response({"units": []}, status=404)
+    
+    current_term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
+    if not current_term:
+        return Response({"units": []}, status=404)
+    
+    # Get student's Timetable
+    student_timetable = Timetable.objects.filter(Class=student.Class, term = current_term)
+
+    lesson_data = []
+    # Get Students Units from the courses and Module
+    student_units = Unit.objects.filter(course = student.studentno.course, module = student.module)
+    for unit in student_units:
+        # Get Lecturer
+        unit_tables = student_timetable.filter(unit__unit = unit).first()
+        if unit_tables:
+            lecturer = unit_tables.unit.regno.get_full_name()
+        else:
+            lecturer = "Not Assigned"
+
+        # Get Number of Lessons
+        unit_tables = student_timetable.filter(unit__unit = unit)
+        total_lessons = 0
+        if unit_tables.exists():
+            # Check the opening date and closing date of the intake
+            opening_date = current_term.openingDate
+            closing_date = current_term.closingDate
+
+            # Within the range of opening and closing date check how many times the units will appear as per the timetable
+            for unit_table in unit_tables:
+                total_lessons += 1
+            
+        lesson_data.append({
+            "completed": unit.id,
+            "total": unit.name,
+            "pending": unit.uncode,
+        })
+
+    return Response({"count": lesson_data})
+ 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def approve_new_application(request, app_id):

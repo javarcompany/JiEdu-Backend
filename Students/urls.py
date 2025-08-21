@@ -10,6 +10,11 @@ router.register(r'students-allocations', StudentAllocationViewSet, basename='stu
 
 urlpatterns = [
     path('api/', include(router.urls)),
+
+    path('api/search-student-primary/', get_student_primary_data, name='search-student-primary'),
+    path('api/search-student-units/', get_student_units, name='search-student-units'),
+    path('api/search-student-lesson-counts/', get_student_lesson_counts, name='search-student-lesson-counts'),
+
     path('api/student_count/<str:filter>/', student_count, name='student-count'),
     path('api/student-count-enrollment/', get_current_and_previous_enrollment, name="student-count-enrollment"),
     path('api/student-count-pending/', get_current_and_previous_pending_enrollment, name="student-count-pending-enrollment"),
