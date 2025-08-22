@@ -36,6 +36,26 @@ def get_student_primary_data(request):
     }
     return Response(data)
 
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_student_class_details(request):
+    student_id = request.query_params.get("student_id")
+    print("Student ID: ", student_id)
+    student = Allocate_Student.objects.filter(studentno__id = student_id).first()
+    print("Student: ", student)
+    
+    # Get course Levels
+    course_duration = CourseDuration.objects.filter(course=student.Class.course, module=student.module).first()
+    level = student.level
+
+    data = {
+        "classname": student.Class.name,
+        "module": student.module.name,
+        "level": f"{level}/{course_duration.duration}",
+    }
+    
+    return Response(data)
+
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def get_student_units(request):
@@ -82,6 +102,7 @@ def get_student_units(request):
             "uncode": unit.uncode,
             "lessons": total_lessons,
             "trainer": lecturer,
+            "progress": {random.randint(1, 100)}
         })
 
     return Response({"units": units_data})
