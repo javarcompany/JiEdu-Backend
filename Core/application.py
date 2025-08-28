@@ -145,7 +145,7 @@ def is_rep_user(user):
                       "class prefects"
     ]  # accepted variants
     user_groups = user.groups.values_list("name", flat=True)
-
+    
     return any(g.lower() in student_groups for g in user_groups)
 
 def is_staff_user(user):

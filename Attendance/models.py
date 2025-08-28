@@ -56,7 +56,7 @@ class StaffRegister(models.Model):
     lesson = models.ForeignKey(Timetable, on_delete=models.CASCADE)
     lecturer = models.ForeignKey(Staff, on_delete=models.CASCADE)
     state = models.CharField(choices=REGISTER_CHOICES, max_length=255)
-    dor = models.DateTimeField()
+    dor = models.DateField()
     tor = models.TimeField()
 
     def __str__(self):

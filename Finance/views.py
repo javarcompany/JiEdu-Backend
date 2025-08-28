@@ -22,6 +22,8 @@ from Core.models import Class, Department, CourseDuration, Course
 from Students.models import Student, Allocate_Student
 from Students.views import predict_applications
 
+from Core.application import is_admin_user, is_student_user, is_rep_user
+
 from .models import *
 from .filters import *
 from .serailizers import *
@@ -40,18 +42,25 @@ class StandardResultsSetPagination(PageNumberPagination):
             'count': self.page.paginator.count,
         })
  
-@csrf_exempt
-@require_POST
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def request_payment(request):
     try:
+        if not request.user.is_authenticated:
+            return JsonResponse({"message": "Unauthorized"}, status=401)
+        
+        user = request.user
         body = json.loads(request.body)
         student_id = body.get("student_id")
+        
+        if is_student_user(user) or is_rep_user(user):
+            student_id = Student.objects.get(regno=body.get("student_id")).id
         wallet_id = body.get("wallet_id")
         amount = int(body.get("amount", 0))
 
         if not student_id or not wallet_id or amount <= 0:
             return JsonResponse({"message": "Missing or invalid data."}, status=400)
-
+        
         # Fetch Student
         try:
             student = Student.objects.get(id=student_id)
@@ -128,8 +137,8 @@ def request_payment(request):
         print("Unexpected error:", str(e))
         return JsonResponse({"message": "Something went wrong."}, status=500)
 
-@csrf_exempt
-@require_POST
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def mpesa_c2b_confirmation(request):
     if request.method != 'POST':
         return JsonResponse({"ResultCode": 1, "ResultDesc": "Invalid request method"})
@@ -191,8 +200,8 @@ def mpesa_c2b_confirmation(request):
         # Add logging here for production
         return JsonResponse({"ResultCode": 1, "ResultDesc": f"Error: {str(e)}"})
 
-@csrf_exempt
-@require_POST
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def check_stk_status(request):
     try:
         body = json.loads(request.body)

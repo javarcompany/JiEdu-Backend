@@ -19,8 +19,8 @@ from Staff.models import Staff, StaffWorkload
 
 from Timetable.models import TableSetup, Days
 
-from Core.models import Institution, Term, Unit
-from Core.application import is_staff_user, is_admin_user, is_student_user
+from Core.models import Institution, Term, Unit, UserProfile
+from Core.application import is_staff_user, is_admin_user, is_student_user, is_tutor_user
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 5
@@ -215,10 +215,11 @@ def mark_attendance(request):
 
     # Mark Trainer's Attendance
     user = request.user
-    if is_staff_user(user):
+    if is_staff_user(user) or is_tutor_user(user):
         # Mark Trainer's Attendance
         try:
-            trainer = Staff.objects.get(user=user)
+            profile = UserProfile.objects.filter(user = user).first()
+            trainer = Staff.objects.filter(user=profile).first()
             StaffRegister.objects.update_or_create(
                 lecturer=trainer,
                 lesson=lesson_obj,
@@ -1153,12 +1154,7 @@ def get_staff_lesson_analysis(request):
         currentStaff = Staff.objects.get(regno=staff_regno)
     except Staff.DoesNotExist:
         return Response({"error": "Staff not found"}, status=404)
-
-    try:
-        staff_classes = StaffWorkload.objects.filter(regno=currentStaff).values_list('Class', flat=True)
-    except StaffWorkload.DoesNotExist:
-        return Response({"error": "Staff classes not found"}, status=404)
-
+    
     institution = Institution.objects.first()
     try:
         current_term = Term.objects.get(name=institution.current_intake, year=institution.current_year)
@@ -1168,7 +1164,7 @@ def get_staff_lesson_analysis(request):
     startDay = current_term.openingDate.date()
     endDay = datetime.today().date()
 
-    this_term_timetable = Timetable.objects.filter(term=current_term, Class__in=staff_classes)
+    this_term_timetable = Timetable.objects.filter(term=current_term, unit__regno=currentStaff)
     if not this_term_timetable.exists():
         return Response({"error": "There is no timetable for this staff."}, status=404)
 
