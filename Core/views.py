@@ -21,6 +21,8 @@ from Students.application import deactivate_student
 from Finance.models import FeeParticular
 from Staff.models import Staff
 
+from Students.models import Student
+
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 5
     page_size_query_param = 'page_size'
@@ -176,15 +178,79 @@ def unit_count(request):
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def current_user(request):
-    user = request.user
-    return Response({
-        "id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-        # Add any custom fields here
-    })
+    # Keep request.user (Django User object)
+    auth_user = request.user
+
+    # Fetch UserProfile if it exists
+    profile = UserProfile.objects.filter(user=auth_user).first()
+    
+    user_data = {}
+
+    # 🟢 Student user
+    if is_student_user(auth_user):
+        user_email= request.user.email
+
+        student = Student.objects.filter(email=user_email).first()
+        if student:
+            user_data.update({
+                "user_type": "student",
+                "first_name": student.fname,
+                "last_name": student.sname,
+                "email": student.email,
+                "user_full_name": student.get_full_name(),
+                "regno": student.regno,
+                "course": student.course.name if student.course else None,
+                "is_rep": is_rep_user(auth_user),   # extra check if class rep
+                "picture": profile.picture.url if profile and profile.picture else None,
+                "branch": profile.branch.name if profile and profile.branch else None,
+            })
+    # 🟢 Staff user
+    elif is_staff_user(auth_user) or is_tutor_user(auth_user):
+        staff = Staff.objects.filter(user=profile).first()
+        if staff:
+            user_data.update({
+                "user_type": "staff",
+                "first_name": staff.fname,
+                "last_name": staff.sname,
+                "email": staff.email,
+                "user_full_name": staff.get_full_name(),
+                "regno": staff.regno,
+                "department": staff.department.name if staff.department else None,
+                "is_tutor": is_tutor_user(auth_user),  # extra check if class tutor
+                "picture": profile.picture.url if profile and profile.picture else None,
+                "branch": profile.branch.name if profile and profile.branch else None,
+            })
+
+    # 🟢 Admin user
+    elif is_admin_user(auth_user):
+        staff = Staff.objects.filter(user=profile).first()
+        user_data.update({
+           "user_type": "admin",
+            "first_name": staff.fname,
+            "last_name": staff.sname,
+            "email": staff.email,
+            "user_full_name": staff.get_full_name(),
+            "regno": staff.regno,
+            "department": staff.department.name if staff.department else None,
+            "is_tutor": is_tutor_user(auth_user),  # extra check if class tutor
+            "picture": profile.picture.url if profile and profile.picture else None,
+            "branch": profile.branch.name if profile and profile.branch else None,
+        })
+        
+    elif auth_user.is_superuser:
+        user_data.update({
+            "user_type": "user",
+            "first_name": auth_user.first_name,
+            "last_name": auth_user.last_name,
+            "email": auth_user.email,
+            "picture": profile.picture.url if profile and profile.picture else None,
+        })
+
+    # 🟡 Unknown group
+    else:
+        user_data.update({"user_type": "unknown"})
+
+    return Response(user_data)
 
 @api_view(['GET'])
 def branch_count(request):

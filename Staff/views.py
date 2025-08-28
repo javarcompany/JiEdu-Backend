@@ -33,6 +33,21 @@ class StandardResultsSetPagination(PageNumberPagination):
         })
 
 @api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_staff_primary_data(request):
+    username = request.user.username
+    current_user = User.objects.get(username=username)
+    current_staff = Staff.objects.get(email = current_user.email)
+
+    data = {
+        "staff_regno": current_staff.regno,
+        "staff_id": current_staff.id,
+        "user_id": current_user.id,
+    }
+
+    return Response(data)
+
+@api_view(['GET'])
 def staff_count(request, filter):
     if filter == "workload":
         count = StaffWorkload.objects.count()
@@ -458,3 +473,77 @@ def get_current_and_previous_pending_tutor(request):
         "current": current_count,
         "previous": previous_count
     })
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def get_staff_units(request):
+    staff_regno = request.query_params.get("staff_regno")
+
+    staff = Staff.objects.filter(regno = staff_regno).first()
+    if not staff:
+        return Response({"units": []}, status=404)
+    
+    current_term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
+    if not current_term:
+        return Response({"units": []}, status=404)
+    
+    # Get staff's Timetable
+    staff_timetable = Timetable.objects.filter(unit__regno=staff, term = current_term)
+
+    units_data = []
+    # Get Staffs Units from the staff workload
+    staff_units = StaffWorkload.objects.filter(term = current_term, regno = staff)
+    for unit in staff_units:
+        # Get Class
+        unit_tables = staff_timetable.filter(unit = unit).first()
+        if unit_tables:
+            Class = unit_tables.Class.name
+        else:
+            Class = "Not Assigned"
+
+        # Get Number of Lessons
+        unit_tables = staff_timetable.filter(unit = unit)
+        total_lessons = 0
+        if unit_tables.exists():
+            # Check the opening date and closing date of the intake
+            opening_date = current_term.openingDate
+            closing_date = current_term.closingDate
+
+            # Within the range of opening and closing date check how many times the units will appear as per the timetable
+            for unit_table in unit_tables:
+                total_lessons += 1
+            
+        units_data.append({
+            "id": unit.id,
+            "name": unit.unit.name,
+            "uncode": unit.unit.uncode,
+            "lessons": total_lessons,
+            "Class": Class,
+            "progress": {random.randint(1, 100)}
+        })
+
+    return Response({"units": units_data})
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def get_staff_classes(request):
+    staff_regno = request.query_params.get("staff_regno")
+
+    staff = Staff.objects.filter(regno = staff_regno).first()
+    if not staff:
+        return Response({"Staff Not Found"}, status=404)
+    
+    current_term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
+    if not current_term:
+        return Response({"Current Term is NOT set"}, status=404)
+    
+    # Get staff's Workload
+    staff_load = StaffWorkload.objects.filter(term = current_term, regno = staff)
+
+    # List all Classes from the staff workloads
+    classes = Class.objects.filter(id__in=staff_load.values_list('Class_id', flat=True)).distinct()
+    
+    serialized_classes = ClassSerializer(classes, many=True).data
+
+    return Response(serialized_classes)
+

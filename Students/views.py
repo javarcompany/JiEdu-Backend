@@ -17,6 +17,7 @@ import calendar
 from Core.models import Department, Institution, Unit
 from Core.serializers import UnitSerializer
 from Timetable.models import Timetable
+from Attendance.models import StudentRegister
 
 from .models import *
 from .serializers import *
@@ -31,18 +32,18 @@ def get_student_primary_data(request):
     current_student = Student.objects.get(email = current_user.email)
 
     data = {
+        "student_regno": current_student.regno,
         "student_id": current_student.id,
         "user_id": current_user.id,
     }
+
     return Response(data)
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def get_student_class_details(request):
-    student_id = request.query_params.get("student_id")
-    print("Student ID: ", student_id)
-    student = Allocate_Student.objects.filter(studentno__id = student_id).first()
-    print("Student: ", student)
+    student_regno = request.query_params.get("student_regno")
+    student = Allocate_Student.objects.filter(studentno__regno = student_regno).first()
     
     # Get course Levels
     course_duration = CourseDuration.objects.filter(course=student.Class.course, module=student.module).first()
@@ -128,31 +129,46 @@ def get_student_lesson_counts(request):
     student_units = Unit.objects.filter(course = student.studentno.course, module = student.module)
     for unit in student_units:
         # Get Lecturer
-        unit_tables = student_timetable.filter(unit__unit = unit).first()
-        if unit_tables:
-            lecturer = unit_tables.unit.regno.get_full_name()
-        else:
-            lecturer = "Not Assigned"
-
-        # Get Number of Lessons
         unit_tables = student_timetable.filter(unit__unit = unit)
+        # Get lecturer
+        lecturer = unit_tables.first().unit.regno.get_full_name() if unit_tables.exists() else "Not Assigned"
+
         total_lessons = 0
-        if unit_tables.exists():
-            # Check the opening date and closing date of the intake
+        attended_lessons = 0
+
+        if unit_tables:
             opening_date = current_term.openingDate
             closing_date = current_term.closingDate
 
-            # Within the range of opening and closing date check how many times the units will appear as per the timetable
-            for unit_table in unit_tables:
-                total_lessons += 1
-            
+            # Count total lessons scheduled
+            # (if timetable has repeating days, you'd expand occurrences between opening/closing dates)
+            total_lessons = unit_tables.count()
+
+            # Count attendance (Present or Late only)
+            attended_lessons = StudentRegister.objects.filter(
+                student=student.studentno,
+                lesson__in=unit_tables,
+                dor__range=[opening_date, closing_date],
+                state__in=["Present", "Late"]
+            ).count()
+
+        # Calculate attendance %
+        attendance_percentage = (
+            round((attended_lessons / total_lessons) * 100, 2) if total_lessons > 0 else 0
+        )
+
         lesson_data.append({
-            "completed": unit.id,
-            "total": unit.name,
-            "pending": unit.uncode,
+            "unit_id": unit.id,
+            "unit_name": unit.name,
+            "unit_code": unit.uncode,
+            "lecturer": lecturer,
+            "attended": attended_lessons,
+            "total": total_lessons,
+            "attendance_percentage": attendance_percentage,
         })
 
-    return Response({"count": lesson_data})
+    print(f"Lesson Data: {lesson_data}")
+    return Response({"LessonData": lesson_data})
  
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])

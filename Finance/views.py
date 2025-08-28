@@ -797,7 +797,7 @@ def reciept_summary(request):
         )
 
         # Get receipts
-        receipts = Receipt.objects.filter(student=student, term=term).order_by('-created_at')
+        receipts = Receipt.objects.filter(student=student, term=term).order_by('created_at')
         receipt_dates = [r.id for r in receipts]
         receipt_values = [float(r.amount) for r in receipts]
         total_receipt = sum(r.amount for r in receipts)
@@ -965,7 +965,6 @@ def view_course_invoices(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def class_income_statement(request):
-
     course_id = request.query_params.get('course_id')
     term_id = request.query_params.get('term_id')
  
@@ -1108,6 +1107,56 @@ def class_student_breakdown(request):
     except Exception as e:
         print("Error in class_student_breakdown view:", e)
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_fee_summary(request):
+    try:
+        student_regno = request.query_params.get("student_regno")
+        student = Student.objects.get(regno = student_regno)
+
+        inst = Institution.objects.first()
+        current_term = Term.objects.filter(name=inst.current_intake, year=inst.current_year).first()
+
+        # Try to get previous term by ordering
+        previous_terms = Term.objects.exclude(id=current_term.id).order_by('-year', '-id')
+
+        if not current_term:
+            return Response({"error": "Current term not found"}, status=400)
+
+        # Current term data
+        invoices = Invoice.objects.filter(student = student)
+        receipts = Receipt.objects.filter(student = student)
+
+        total_invoiced = invoices.aggregate(total=Coalesce(Sum('amount'), V(0), output_field=DecimalField()))['total']
+        total_paid = receipts.aggregate(total=Coalesce(Sum('amount'), V(0), output_field=DecimalField()))['total']
+        total_balance = total_invoiced - total_paid
+
+        # Previous term comparison data
+        prev_invoiced, prev_paid, prev_balance = 0, 0, 0
+        if previous_terms:
+            prev_invoiced = Invoice.objects.filter(student = student, term__in=previous_terms).aggregate(
+                total=Coalesce(Sum('amount'), V(0), output_field=DecimalField())
+            )['total']
+            prev_paid = Receipt.objects.filter(student = student, term__in=previous_terms).aggregate(
+                total=Coalesce(Sum('amount'), V(0), output_field=DecimalField())
+            )['total']
+            prev_balance = prev_invoiced - prev_paid
+
+        return Response({
+            "summary": {
+                "totalInvoiced": float(total_invoiced),
+                "totalPaid": float(total_paid),
+                "totalBalance": float(total_balance),
+                "prevInvoiced": float(prev_invoiced),
+                "prevPaid": float(prev_paid),
+                "prevBalance": float(prev_balance)
+            }
+        })
+
+    except Exception as e:
+        print("Error in institution fee summary:", e)
+        return Response({"error": str(e)}, status=500)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

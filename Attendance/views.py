@@ -13,9 +13,14 @@ from .filters import *
 from .application import *
 
 from Students.models import Allocate_Student
-from Timetable.models import TableSetup, Days
-from Core.models import Institution, Term, Unit
 from Students.serializers import StudentAllocationSerializer
+
+from Staff.models import Staff, StaffWorkload
+
+from Timetable.models import TableSetup, Days
+
+from Core.models import Institution, Term, Unit
+from Core.application import is_staff_user, is_admin_user, is_student_user
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 5
@@ -115,47 +120,6 @@ class AttendanceModeViewSet(viewsets.ModelViewSet):
             
         return super().list(request, *args, **kwargs)
     
-@api_view(['GET'])
-def check_current_lesson(request):
-    class_id = request.GET.get("class_id")
-    # a) Class
-    classObject = Class.objects.get(id = class_id)
-
-    # b) Day
-    today = Days.objects.filter(name = str(datetime.today().strftime('%A'))).first()
-
-    if not today:
-        return Response({"error": "Today there are NO Lessons..."}, status=400)
-    
-    # c) Lesson
-    current_time = datetime.now().time()
-    all_lessons = TableSetup.objects.filter(code="Lesson")
-    matched_lesson = None
-    if all_lessons:
-        for lesson in all_lessons:
-            print("Start Time: ", lesson.start, " End Time: ", lesson.end, "  Current Time:", current_time)
-            if lesson.start <= current_time <= lesson.end:
-                matched_lesson = lesson
-                break
-
-    if not matched_lesson:     
-        return Response({"error": "Ooops, There is no lesson this time of the day...."})
-    
-    # Get current system term
-    currentTerm = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
-
-    lesson = Timetable.objects.filter(
-        term = currentTerm,
-        Class = classObject,
-        day = today,
-        lesson = matched_lesson,
-    ).first()
-
-    if lesson:
-        return Response({"has_lesson": True, "lesson_id": lesson.id})
-    
-    return Response({"has_lesson": False, "error": f"{classObject.name} has no lesson at this time of the day.."})
-
 @api_view(["GET"])
 def search_student_attendance(request):
     class_id = request.query_params.get('class_id')
@@ -248,6 +212,40 @@ def mark_attendance(request):
             errors.append(f"Student {regno} not found in class.")
         except Exception as e:
             errors.append(str(e))
+
+    # Mark Trainer's Attendance
+    user = request.user
+    if is_staff_user(user):
+        # Mark Trainer's Attendance
+        try:
+            trainer = Staff.objects.get(user=user)
+            StaffRegister.objects.update_or_create(
+                lecturer=trainer,
+                lesson=lesson_obj,
+                dor=datetime.today().date(),
+                defaults={
+                    "state": "Present",
+                    "tor": datetime.now().time()
+                }
+            )
+        except Staff.DoesNotExist:
+            errors.append("Trainer not found.")
+
+    if is_admin_user(user):
+        # Mark Admin's Attendance
+        try:
+            trainer = Staff.objects.get(user=user)
+            Staff.objects.update_or_create(
+                lecturer=trainer,
+                lesson=lesson_obj,
+                dor=datetime.today().date(),
+                defaults={
+                    "state": "Absent",
+                    "tor": datetime.now().time()
+                }
+            )
+        except Staff.DoesNotExist:
+            errors.append("Staff not found.")
 
     if errors:
         return Response({"error": errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -400,12 +398,20 @@ def get_student_unit_analysis(request):
 
 @api_view(["GET"])
 def get_student_lesson_analysis(request):
-    student_id = request.query_params.get('student_id')
-    if (not student_id) or (student_id == "0"):
-        student_id = Student.objects.first().id
+    user = request.user
+    student_regno = request.query_params.get('student_regno')
+    if is_student_user(user):
+        pass
+    elif is_admin_user(user) or user.is_superuser:
+        student_id = request.query_params.get('student_id')
+        if (not student_id) or (student_id == "0"):
+            student_regno = Student.objects.first().regno
+        else:
+            student_regno = Student.objects.filter(id = student_id).first().regno
+
 
     try:
-        currentStudent = Student.objects.get(id=student_id) if student_id else Student.objects.first()
+        currentStudent = Student.objects.get(regno=student_regno)
     except Student.DoesNotExist:
         return Response({"error": "Student not found"}, status=404)
 
@@ -1130,3 +1136,82 @@ def course_attendance_overview(request):
 
     return Response(data)
 
+@api_view(["GET"])
+def get_staff_lesson_analysis(request):
+    user = request.user
+    staff_regno = request.query_params.get('staff_regno')
+    staff_id = request.query_params.get('staff_id')
+    if is_staff_user(user):
+        staff_regno = request.query_params.get('staff_regno')
+    elif is_admin_user(user):
+        if (not staff_id) or (staff_id == "0"):
+            staff_regno = Staff.objects.first().regno
+        else:
+            staff_regno = Staff.objects.filter(id=staff_id).values_list('regno', flat=True).first()
+
+    try:
+        currentStaff = Staff.objects.get(regno=staff_regno)
+    except Staff.DoesNotExist:
+        return Response({"error": "Staff not found"}, status=404)
+
+    try:
+        staff_classes = StaffWorkload.objects.filter(regno=currentStaff).values_list('Class', flat=True)
+    except StaffWorkload.DoesNotExist:
+        return Response({"error": "Staff classes not found"}, status=404)
+
+    institution = Institution.objects.first()
+    try:
+        current_term = Term.objects.get(name=institution.current_intake, year=institution.current_year)
+    except Term.DoesNotExist:
+        return Response({"error": "There is no current term set..."}, status=400)
+
+    startDay = current_term.openingDate.date()
+    endDay = datetime.today().date()
+
+    this_term_timetable = Timetable.objects.filter(term=current_term, Class__in=staff_classes)
+    if not this_term_timetable.exists():
+        return Response({"error": "There is no timetable for this staff."}, status=404)
+
+    timetable_by_day = {}
+    for t in this_term_timetable:
+        weekday = t.day.name.lower()
+        timetable_by_day.setdefault(weekday, []).append(t)
+
+    lessons = []
+    reg_values = []
+
+    for i in range((endDay - startDay).days + 1):
+        current_date = startDay + timedelta(days=i)
+        weekday = get_weekday(current_date.weekday()).lower()
+        daily_timetables = timetable_by_day.get(weekday, [])
+
+        if not daily_timetables:
+            continue  # No lessons this day
+
+        register = 0
+        lesson_count = 0
+
+        for lesson in daily_timetables:
+            lesson_count += 1
+            attendance = StaffRegister.objects.filter(
+                lecturer=currentStaff,
+                lesson=lesson,
+                dor=current_date
+            ).first()
+
+            if attendance:
+                if attendance.state == "Present":
+                    register += 100
+                elif attendance.state == "Late":
+                    register += 50
+                # Absent = 0, implicit
+            # Else: treat as unmarked (register += 0)
+
+        avg_register = register / lesson_count if lesson_count > 0 else 0
+        lessons.append(current_date.strftime("%m-%d"))
+        reg_values.append(round(avg_register,1))
+
+    return Response({
+        "lessons": lessons,
+        "reg_values": reg_values
+    })

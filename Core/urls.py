@@ -29,7 +29,8 @@ urlpatterns = [
     path('api/branch_count/', branch_count, name='branch-count'),
     path('api/current_user/', current_user, name='current-user'),
 
-    path('api/genders/', gender_choices, name="genders"),    path('api/relationship-choices/', relationship_choices, name="relationships"),
+    path('api/genders/', gender_choices, name="genders"),    
+    path('api/relationship-choices/', relationship_choices, name="relationships"),
     path('api/exam-choices/', exam_choices, name="exam-choices"),
     path('api/groups/', GroupListCreateView.as_view(), name="list_group"),
     path('api/groups/delete/<int:group_id>/', DeleteGroupView.as_view(), name="delete_group"),

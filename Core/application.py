@@ -120,3 +120,64 @@ def download_school_template(request):
     )
     response["Content-Disposition"] = 'attachment; filename="school_template.xls"'
     return response
+
+def is_student_user(user):
+    """
+    Returns True if the user belongs to a group named like 'student' 
+    (case-insensitive, singular/plural).
+    """
+    student_groups = ["student", "students"]  # accepted variants
+    user_groups = user.groups.values_list("name", flat=True)
+
+    return any(g.lower() in student_groups for g in user_groups)
+
+def is_rep_user(user):
+    """
+    Returns True if the user belongs to a group named like 'class rep' 
+    (case-insensitive, singular/plural).
+    """
+    student_groups = ["class rep", "rep", 
+                      "class representative", 
+                      "representative", "reps", 
+                      "class reps", "representatives", 
+                      "class representatives",
+                      "prefect", "class prefect", "prefects",
+                      "class prefects"
+    ]  # accepted variants
+    user_groups = user.groups.values_list("name", flat=True)
+
+    return any(g.lower() in student_groups for g in user_groups)
+
+def is_staff_user(user):
+    """
+    Returns True if the user belongs to a group named like 'staff' 
+    (case-insensitive, singular/plural).
+    """
+    staff_groups = ["staff", "staffs", "lecturer", "lecturers", "teacher", "teachers"]  # accepted variants
+    user_groups = user.groups.values_list("name", flat=True)
+
+    return any(g.lower() in staff_groups for g in user_groups)
+
+def is_tutor_user(user):
+    """
+    Returns True if the user belongs to a group named like 'class tutor' 
+    (case-insensitive, singular/plural).
+    """
+    staff_groups = ["class tutor", "tutor", 
+                      "class tutors", 
+                      "tutors", "class teacher", 
+                      "class teachers"
+    ]  # accepted variants
+    user_groups = user.groups.values_list("name", flat=True)
+
+    return any(g.lower() in staff_groups for g in user_groups)
+
+def is_admin_user(user):
+    """
+    Returns True if the user belongs to a group named like 'admin' 
+    (case-insensitive, singular/plural).
+    """
+    admin_groups = ["admin", "administrators", "user"]  # accepted variants
+    user_groups = user.groups.values_list("name", flat=True)
+
+    return any(g.lower() in admin_groups for g in user_groups)

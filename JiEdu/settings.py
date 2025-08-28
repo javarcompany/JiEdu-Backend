@@ -42,6 +42,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'django_crontab',
+
+
     'Attendance',
     'Audit',
     'Biometrics',
@@ -50,6 +53,7 @@ INSTALLED_APPS = [
     'Staff',
     'Students',
     'Timetable',
+    'Events',
     'rest_framework.authtoken',
     'dj_rest_auth',
     'rest_framework_simplejwt',
@@ -77,6 +81,10 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+]
+
+CRONJOBS = [
+    ('0 0 * * *', 'django.core.management.call_command', ['sync_holidays']),
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True  # or specify React frontend URL in production

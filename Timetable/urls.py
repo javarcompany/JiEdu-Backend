@@ -19,11 +19,14 @@ urlpatterns = [
     path('api/allocate-timetable/<int:class_id>/<int:day_id>/', allocate_timetable, name = 'allocate-timetable'),
 
     path('api/timetable/staff/', staff_timetable, name='staff-timetable'),
-    path('api/timetable/student/<int:id>', student_timetable, name='student-timetable'),
+    path('api/timetable/student/', student_timetable, name='student-timetable'),
     path("api/institution-timetable/", institution_timetable),
     path('api/timetable/class/', class_timetable, name='class-timetable'),
     path('api/timetable/department/', department_timetable, name='department-timetable'),
 
     path('api/change-timetable/', change_timetable, name="change-timetable"),
+
+    path('api/check-lesson/', check_current_lesson, name="check-lesson"),
+    path('api/check-lesson-lecturer/', check_current_lesson_lecturer, name="check-lesson-lecturer"),
 
 ]

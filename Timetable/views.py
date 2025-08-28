@@ -20,7 +20,8 @@ from .application import *
 
 from Staff.models import Staff
 from Students.models import Allocate_Student
-from Core.models import Course, Department, Institution
+from Core.models import Department, Institution
+from Core.application import is_rep_user, is_staff_user, is_student_user, is_tutor_user, is_admin_user
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 5
@@ -328,30 +329,50 @@ def current_lessons(request):
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def staff_timetable(request):
-    staff_id = request.query_params.get("staff_id")
+    user = request.user
+    staff_regno = request.query_params.get("staff_regno")
     term_id = request.query_params.get("term_id")
-    if (not staff_id) or (staff_id == "0") or (staff_id == ""):
-        staff_id = Staff.objects.first().id
     
+    if is_staff_user(user) or is_tutor_user(user):
+        if (not staff_regno) or (staff_regno == "0") or (staff_regno == ""):
+            return Response({"Error": "Invalid staff registration number"})
+    elif is_admin_user(user) or user.is_superuser:
+        staff_id = request.query_params.get("staff_id")
+        if (not staff_id) or (staff_id == "0") or (staff_id == ""):
+            staff_regno = Staff.objects.first().regno
+        else:
+            staff_regno = Staff.objects.get(id = staff_id).regno
+    else:
+        return Response({"Error": "You are not Authorized!"})
+
     if (not term_id) or (term_id == "0") or (term_id == ""):
         term_id = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year).id
 
     lessons = TableSetup.objects.filter(code="Lesson").order_by('start')  # Sorted by time
     days = Days.objects.order_by('id')
-    timetable_entries = Timetable.objects.filter(unit__regno__id = staff_id, term__id = term_id).select_related('day', 'lesson', 'Class', 'unit', 'classroom')
+    timetable_entries = Timetable.objects.filter(unit__regno__regno = staff_regno, term__id = term_id).select_related('day', 'lesson', 'Class', 'unit', 'classroom')
     serializer = TimetableSerializer(timetable_entries, many=True)
     data = {
         "lessons": [{"id": l.id, "name": l.name, "start": l.start, "end": l.end} for l in lessons],
         "days": [{"id": d.id, "name": d.name}for d in days],
         "timetable": serializer.data
     }
-    # print(data)
+    
     return Response(data)
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def student_timetable(request, id):
-    class_id = Allocate_Student.objects.get(studentno__id = id).Class.id
+def student_timetable(request):
+    user = request.user
+    class_id = ''
+    if is_student_user(user):
+        student_regno = request.query_params.get("student_regno")
+        class_id = Allocate_Student.objects.get(studentno__regno = student_regno).Class.id
+    elif is_admin_user(user) or user.is_superuser:
+        student_id = request.query_params.get("student_regno")
+        class_id = Allocate_Student.objects.get(studentno__id = student_id).Class.id
+    else:
+        return Response({"Error": "You are NOT Authorized to access this timetable !!"})
     # print("Class ID:  ", class_id)
     lessons = TableSetup.objects.filter(code="Lesson").order_by('start')  # Sorted by time
     days = Days.objects.order_by('id')
@@ -466,3 +487,86 @@ def change_timetable(request):
         "success": f"{timetable.Class.name} - {timetable.unit.unit} has been modified successfully."
     })
 
+@api_view(['GET'])
+def check_current_lesson(request):
+    class_id = request.GET.get("class_id")
+    # a) Class
+    classObject = Class.objects.get(id = class_id)
+
+    # b) Day
+    today = Days.objects.filter(name = str(datetime.today().strftime('%A'))).first()
+
+    if not today:
+        return Response({"error": "Today there are NO Lessons..."}, status=400)
+    
+    # c) Lesson
+    current_time = datetime.now().time()
+    all_lessons = TableSetup.objects.filter(code="Lesson")
+    matched_lesson = None
+    if all_lessons:
+        for lesson in all_lessons:
+            if lesson.start <= current_time <= lesson.end:
+                matched_lesson = lesson
+                break
+
+    if not matched_lesson:     
+        return Response({"error": "Ooops, There is no lesson this time of the day...."})
+    
+    # Get current system term
+    currentTerm = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
+
+    lesson = Timetable.objects.filter(
+        term = currentTerm,
+        Class = classObject,
+        day = today,
+        lesson = matched_lesson,
+    ).first()
+
+    if lesson:
+        return Response({"has_lesson": True, "lesson_id": lesson.id})
+    
+    return Response({"has_lesson": False, "error": f"{classObject.name} has no lesson at this time of the day.."})
+
+@api_view(['GET'])
+def check_current_lesson_lecturer(request):
+    class_id = request.GET.get("class_id")
+    staff_regno = request.GET.get("staff_regno")
+
+    # a) Class
+    classObject = Class.objects.get(id = class_id)
+    staffObject = Staff.objects.get(regno = staff_regno)
+
+    # b) Day
+    today = Days.objects.filter(name = str(datetime.today().strftime('%A'))).first()
+
+    if not today:
+        return Response({"error": "Today there are NO Lessons..."}, status=400)
+    
+    # c) Lesson
+    current_time = datetime.now().time()
+    all_lessons = TableSetup.objects.filter(code="Lesson")
+    matched_lesson = None
+    if all_lessons:
+        for lesson in all_lessons:
+            if lesson.start <= current_time <= lesson.end:
+                matched_lesson = lesson
+                break
+
+    if not matched_lesson:     
+        return Response({"error": "Ooops, There is no lesson this time of the day...."})
+    
+    # Get current system term
+    currentTerm = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
+
+    lesson = Timetable.objects.filter(
+        term = currentTerm,
+        Class = classObject,
+        day = today,
+        lesson = matched_lesson,
+        unit__regno = staffObject
+    ).first()
+
+    if lesson:
+        return Response({"has_lesson": True, "lesson_id": lesson.id})
+    
+    return Response({"has_lesson": False, "error": f"{classObject.name} has no lesson at this time of the day.."})

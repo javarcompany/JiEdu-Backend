@@ -9,6 +9,10 @@ router.register(r'class-tutors', ClassTutorViewSet, basename = 'class-tutor')
 
 urlpatterns = [
     path('api/', include(router.urls)),
+    path('api/search-staff-primary/', get_staff_primary_data, name='search-staff-primary'),
+
+    path('api/search-staff-workloads/', get_staff_units, name='search-staff-units'),
+
     path('api/staff-workloads/individual/<int:id>', staff_workload, name = "staff-workload"),
     path('api/staff_count/<str:filter>/', staff_count, name='staff-count'),
 
@@ -26,5 +30,6 @@ urlpatterns = [
     path('api/change-unit-workload/', change_unit_workload, name = "change-unit-workload"),
     path('api/check-new-lecturer-workload/', check_new_lecturer_workload, name="check-new-lecturer-workload"),
 
+    path('api/lecturer-classes/', get_staff_classes, name="lecturer-classes"),
 
 ]

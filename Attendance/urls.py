@@ -11,11 +11,11 @@ urlpatterns = [
     
     path('api/attendance-summary/', student_attendance_percentages, name="attendance-summary"),
     path('api/search-attendance/', search_student_attendance, name="search-student-attendance"),
-    path('api/check-lesson/', check_current_lesson, name="check-lesson"),
     path('api/mark-attendance/', mark_attendance, name="mark-attendance"),
     path('api/student-analysis/', get_student_analysis, name="student-analysis"),
     path("api/student-unit-attendance/", get_student_unit_analysis, name = "student-unit-attendance"),
     path("api/student-lesson-analysis/", get_student_lesson_analysis, name = "student-lesson-attendance"),
+    path("api/lecturer-lesson-analysis/", get_staff_lesson_analysis, name = "lecturer-lesson-attendance"),
     path("api/student-weekly-attendance/", student_weekly_attendance_trend, name = "student-weekly-trend"),
     path("api/student-module-attendance-summary/", get_student_module_summary_report, name = "student-module-attendance-summary"),
     path("api/student-daily-attendance-summary/", get_student_weekday_attendance_report, name="student-daily-attendance-summary"),

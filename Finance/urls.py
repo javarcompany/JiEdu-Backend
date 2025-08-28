@@ -36,6 +36,10 @@ urlpatterns = [
     path("api/institution-monthly-fee-summary/", InstitutionMonthlyFeeSummary.as_view(), name="institution-monthly-fee-trend"),
     path("api/predict-fee-payments/", predict_fee_payments, name = "predict-fee"),
 
+    # Student
+    path('api/student-fee-summary/', student_fee_summary, name = "student-fee-summary"),
+
+
     # Equity
     path('api/equity/payment-callback/', equity_payment_callback),
 
