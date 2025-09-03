@@ -26,6 +26,30 @@ from .application import *
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
+def check_student_state(request):
+    student_regno = request.query_params.get('student_regno')
+
+    current_student = Student.objects.filter(regno = student_regno).first()
+
+    result = False
+    if current_student.state == "Inactive":
+        result = True
+
+    return Response(result)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def promote_myself(request):
+    student_regno = request.query_params.get('student_regno')
+
+    current_student = Student.objects.filter(regno = student_regno).first()
+
+    result = promote_student("student", current_student.pk)
+
+    return Response(result)
+ 
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
 def get_student_primary_data(request):
     username = request.user.username
     current_user = User.objects.get(username=username)
@@ -279,7 +303,7 @@ def batch_promote_view(request):
     results = []
 
     for student_id in student_ids:
-        result = promote_student(student_id)
+        result = promote_student("staff", student_id)
         results.append(result)
     return Response(results)
 

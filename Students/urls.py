@@ -31,6 +31,8 @@ urlpatterns = [
     path('api/allocate-student/<int:stud_id>/<int:class_id>/', allocate_view, name="allocate-student"),
     path('api/student-allocation-count-pending/', get_current_and_previous_pending_allocation, name="student-count-pending-allocation"),
 
+    path('api/search-student-state/', check_student_state, name='search-student-state'),
+    path('api/promote/', promote_myself, name='promote'),
     path('api/promote/promote-batch/', batch_promote_view, name='promote-batch'),
     path('api/promote/institution-promotion-status/', institution_promotion_status, name="institution-promotion-status"),
     
@@ -59,4 +61,5 @@ urlpatterns = [
     path('api/fetch-student-previous-exams/', fetch_previous_exams, name="fetch-student-previous-exams"),
     path('api/student-primary-course-data/', fetch_student_primary_data, name="student-primary-course-data"),
     
+
 ]

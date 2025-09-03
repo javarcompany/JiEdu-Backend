@@ -219,49 +219,75 @@ def allocate_student(stud_id, class_id):
         return {'error': 'Class NOT found!'}
 
 # Promote student to next intake
-def promote_student(stud_id):
+def promote_student(request_user, stud_id):
     try:
         current_student = Student.objects.get(id = stud_id)
         current_student_allocation = Allocate_Student.objects.get(studentno = current_student)
         current_term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
         course_duration = CourseDuration.objects.filter(course = current_student.course, module = current_student_allocation.module).first()
-        if current_student.state == "Inactive":
-            if current_student_allocation.level < course_duration.duration:
-                if current_student_allocation.term.id > current_term.id:
-                    return {"message": f"{current_student.get_full_name()} intake is not yet there"}
-                elif current_student_allocation.term.id == current_term.id:
-                    current_student_allocation += 0
-                else:
-                    current_student_allocation.level += 1
-                current_student_allocation.term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
-                current_student.state = "Active"
+        
+        if current_student.state != "Active":
+            if current_student.state == "Inactive":
+                if current_student_allocation.level < course_duration.duration:
+                    if current_student_allocation.term.id > current_term.id:
+                        return {"message": f"{current_student.get_full_name()} intake is not yet there"}
+                    elif current_student_allocation.term.id == current_term.id:
+                        current_student_allocation += 0
+                    else:
+                        current_student_allocation.level += 1
+                    current_student_allocation.term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
+                    current_student.state = "Active"
+                    
+            elif current_student.state == "Cleared":
+                student_course_level = int(current_student.course.module_duration)
+                current_student_module = int(str(current_student_allocation.module.abbr)[1])
                 
-        elif current_student.state == "Cleared":
-            student_course_level = int(current_student.course.module_duration)
-            current_student_module = int(str(current_student_allocation.module.abbr)[1])
-            
-            if current_student_module < student_course_level:
-                current_student_module += 1
-                current_student_module = f"M{current_student_module}"
-                current_student_module = Module.objects.filter(abbr = current_student_module).first()
-                if current_student_module:
-                    course_duration = CourseDuration.objects.filter(course = current_student.course, module = current_student_module).first()
-                    if course_duration:
-                        current_student_allocation.module = course_duration.module
-                        current_student_allocation.level = 1
-                        current_student_allocation.term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
-                        current_student_allocation.Class = None
-                        current_student_allocation.state = "Pending"
-                        current_student.state = "Active"
+                if current_student_module < student_course_level:
+                    current_student_module += 1
+                    current_student_module = f"M{current_student_module}"
+                    current_student_module = Module.objects.filter(abbr = current_student_module).first()
+                    if current_student_module:
+                        course_duration = CourseDuration.objects.filter(course = current_student.course, module = current_student_module).first()
+                        if course_duration:
+                            current_student_allocation.module = course_duration.module
+                            current_student_allocation.level = 1
+                            current_student_allocation.term = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year)
+                            current_student_allocation.Class = None
+                            current_student_allocation.state = "Pending"
+                            current_student.state = "Active"
 
-        current_student.save()
-        current_student_allocation.save()
+            current_student.save()
+            current_student_allocation.save()
 
-        # Create Fee Invoice for the new term
-        create_newterm_invoice(current_student.regno, term_id=Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year).id)
+            # Create Fee Invoice for the new term
+            create_newterm_invoice(current_student.regno, term_id=Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year).id)
 
-        return {"message": f"{current_student.get_full_name()} Promoted Successfully"}
-
+            if request_user == "student":
+                return {
+                    "message": f"{current_student.fname}, you have been promoted successfully!",
+                    "state": True,
+                    "kind": "success"
+                }
+            else:
+                return {
+                    "message": f"{current_student.get_full_name()} Promoted Successfully!",
+                    "state": True,
+                    "kind": "success"
+                }
+        else:
+            if request_user == "student":
+                return {
+                    "message": f"{current_student.fname}, you are already promoted",
+                    "state": False,
+                    "kind": "info"
+                }
+            else:
+                return {
+                    "message": f"{current_student.get_full_name()} is already promoted",
+                    "state": False,
+                    "kind": "info"
+                }
+        
     except Exception as e:
         print(f"[ERROR]: {e}")
         return {"error": str(e)}
