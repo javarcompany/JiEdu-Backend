@@ -204,8 +204,7 @@ def mpesa_c2b_confirmation(request):
 @permission_classes([IsAuthenticated])
 def check_stk_status(request):
     try:
-        body = json.loads(request.body)
-        checkout_request_id = body.get("checkout_request_id")
+        checkout_request_id = request.query_params.get("checkout_request_id")
 
         if not checkout_request_id:
             return JsonResponse({"success": False, "message": "Missing CheckoutRequestID."}, status=400)
@@ -1026,8 +1025,8 @@ def class_income_statement(request):
                 
                 total_invoiced += sum(inv.amount for inv in invoices)
                 total_paid += sum(rcp.amount for rcp in receipts)
-                # Add Overpayments to total_paid
-                total_paid += sum(inv.paid_amount for inv in invoices if inv.paid_amount is not None)
+                # # Add Overpayments to total_paid
+                # total_paid += sum(inv.paid_amount for inv in invoices if inv.paid_amount is not None)
 
             balance = total_invoiced - total_paid
 
@@ -1090,8 +1089,8 @@ def class_student_breakdown(request):
 
             invoice_total = sum(inv.amount for inv in invoices)
             paid_total = sum(rc.amount for rc in receipts)
-            # Add Overpayments to paid_total
-            paid_total += sum(inv.paid_amount for inv in invoices if inv.paid_amount is not None)
+            # # Add Overpayments to paid_total
+            # paid_total += sum(inv.paid_amount for inv in invoices if inv.paid_amount is not None)
             balance = invoice_total - paid_total
 
             if balance == 0:

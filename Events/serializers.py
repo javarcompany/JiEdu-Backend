@@ -22,7 +22,8 @@ class EventSerializer(serializers.ModelSerializer):
                 'end_datetime', 'is_all_day', 
                 'location', 'created_by', 'term', 
                 'department', 'course', 'class_name', 
-                'student', 'staff', 'branch_name', 'branch', 'level'
+                'student', 'staff', 'branch_name', 'branch', 'level',
+                'event_type', 'Class'
         ]
 
     def create(self, validated_data):

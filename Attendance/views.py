@@ -232,8 +232,8 @@ def mark_attendance(request):
         except Staff.DoesNotExist:
             errors.append("Trainer not found.")
 
-    if is_admin_user(user):
-        # Mark Admin's Attendance
+    if is_admin_user(user) or user.is_superuser:
+        # Mark Staff Absent
         try:
             trainer = Staff.objects.get(user=user)
             Staff.objects.update_or_create(

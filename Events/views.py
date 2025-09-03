@@ -285,6 +285,7 @@ def get_user_events(request):
             "level": e.level,
             "location": str(e.location),
             "is_all_day": e.is_all_day,
+            "created_by": str(e.staff.regno) if e.staff else str(e.student.regno),
         }
         for e in events
     ]

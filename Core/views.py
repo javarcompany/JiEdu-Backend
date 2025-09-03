@@ -21,7 +21,7 @@ from Students.application import deactivate_student
 from Finance.models import FeeParticular
 from Staff.models import Staff
 
-from Students.models import Student
+from Students.models import Student, Application
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 5
@@ -733,8 +733,126 @@ def reset_own_password(request, username):
     except Exception as e:
         return Response({"message": "No Internet Connection"})
 
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def change_password(request):
+    """
+    Allow an authenticated user to change their password.
+    """
+    user = request.user
+    current_password = request.data.get("current_password")
+    new_password = request.data.get("new_password")
+
+    # Validate input
+    if not current_password or not new_password:
+        return Response(
+            {"detail": "Current password and new password are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Check current password
+    if not user.check_password(current_password):
+        return Response(
+            {"detail": "Current password is incorrect."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    # Ensure new password is strong enough
+    if len(new_password) < 6:
+        return Response(
+            {"detail": "New password must be at least 6 characters long."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Set new password
+    user.set_password(new_password)
+    user.save()
+
+    return Response(
+        {"detail": "Password updated successfully."},
+        status=status.HTTP_200_OK,
+    )
+
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def check_token(request):
     return Response({"valid": True})  # If user is authenticated, token is valid
 
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def fetch_user_profile(request):
+    # Keep request.user (Django User object)
+    auth_user = request.user
+
+    # Fetch UserProfile if it exists
+    profile = UserProfile.objects.filter(user=auth_user).first()
+
+    user_data = {}
+
+    # 🟢 Student user
+    if is_student_user(auth_user):
+        user_email= request.user.email
+
+        student = Application.objects.filter(email=user_email).first()
+        if student:
+            user_data.update({
+                "first_name": student.fname,
+                "last_name": student.sname,
+                "email": student.email,
+                "phone": student.phone,
+                "location": student.phy_addr,
+                "name": student.get_full_name(),
+                "dob": student.dob.strftime("%Y-%m-%d"),
+                "regno": student.regno,
+                "course": student.course.name if student.course else None,
+                "picture": profile.picture.url if profile and profile.picture else None,
+                "branch": profile.branch.name if profile and profile.branch else None,
+            })
+    # 🟢 Staff user
+    elif is_staff_user(auth_user) or is_tutor_user(auth_user):
+        staff = Staff.objects.filter(user=profile).first()
+        if staff:
+            user_data.update({
+                "user_type": "staff",
+                "first_name": staff.fname,
+                "last_name": staff.sname,
+                "email": staff.email,
+                "user_full_name": staff.get_full_name(),
+                "regno": staff.regno,
+                "dob": staff.dob.strftime("%Y-%m-%d"),
+                "department": staff.department.name if staff.department else None,
+                "is_tutor": is_tutor_user(auth_user),  # extra check if class tutor
+                "picture": profile.picture.url if profile and profile.picture else None,
+                "branch": profile.branch.name if profile and profile.branch else None,
+            })
+
+    # 🟢 Admin user
+    elif is_admin_user(auth_user):
+        staff = Staff.objects.filter(user=profile).first()
+        user_data.update({
+           "user_type": "admin",
+            "first_name": staff.fname,
+            "last_name": staff.sname,
+            "email": staff.email,
+            "user_full_name": staff.get_full_name(),
+            "regno": staff.regno,
+            "department": staff.department.name if staff.department else None,
+            "is_tutor": is_tutor_user(auth_user),  # extra check if class tutor
+            "picture": profile.picture.url if profile and profile.picture else None,
+            "branch": profile.branch.name if profile and profile.branch else None,
+        })
+        
+    elif auth_user.is_superuser:
+        user_data.update({
+            "user_type": "user",
+            "first_name": auth_user.first_name,
+            "last_name": auth_user.last_name,
+            "email": auth_user.email,
+            "picture": profile.picture.url if profile and profile.picture else None,
+        })
+
+    # 🟡 Unknown group
+    else:
+        user_data.update({"user_type": "unknown"})
+
+    return Response(user_data)

@@ -55,5 +55,8 @@ urlpatterns = [
     path('api/course-age-breakdown/', course_age_summary, name= "course-age-breakdown"),
     path('api/course-exams-breakdown/', course_exams_summary, name= "course-exams-breakdown"),
 
-
+    path('api/fetch-classmates/', fetch_classmates, name="fetch-classmates"),
+    path('api/fetch-student-previous-exams/', fetch_previous_exams, name="fetch-student-previous-exams"),
+    path('api/student-primary-course-data/', fetch_student_primary_data, name="student-primary-course-data"),
+    
 ]

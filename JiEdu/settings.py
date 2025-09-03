@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'django_crontab',
-
+    "channels",
 
     'Attendance',
     'Audit',
@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'Students',
     'Timetable',
     'Events',
+    
     'rest_framework.authtoken',
     'dj_rest_auth',
     'rest_framework_simplejwt',
@@ -116,6 +117,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'JiEdu.wsgi.application'
+ASGI_APPLICATION = "JiEdu.asgi.application"
 
 # Lipa Na MPESA
 
@@ -220,3 +222,13 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",  # for dev/testing
+        # or Redis:
+        # "BACKEND": "channels_redis.core.RedisChannelLayer",
+        # "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
+    },
+}
+

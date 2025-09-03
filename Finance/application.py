@@ -56,35 +56,43 @@ def generate_pass_key(shortcode):
     encoded = base64.b64encode(s.encode()).decode()
     return encoded, time_stamp
 
-def get_mpesa_access_token(phone):
+def get_mpesa_access_token(wallet=None):
     """
-    Fetches an OAuth access token from Safaricom M-Pesa API.
-    Assumes you have set `MPESA_CONSUMER_KEY` and `MPESA_CONSUMER_SECRET`.
+    Fetch OAuth access token from Safaricom M-Pesa API.
+    If you support multiple wallets/paybills, map wallet -> consumer_key/secret.
+    Otherwise, just use the default global app credentials.
     """
     token_url = f"{api_settings.SAFARICOM_API}/oauth/v1/generate?grant_type=client_credentials"
-    access_token = AccessToken.objects.filter(account_number = phone)
-    if not access_token:
-        try:
-            response = requests.get(
-                token_url,
-                auth=HTTPBasicAuth(api_settings.MPESA_CONSUMER_KEY, api_settings.MPESA_CONSUMER_SECRET)
-            )
 
-            response.raise_for_status()
-            token = response.json().get("access_token")
+    # Decide which keys to use
+    consumer_key = api_settings.MPESA_CONSUMER_KEY
+    consumer_secret = api_settings.MPESA_CONSUMER_SECRET
 
-            return token
-
-        except requests.RequestException as e:
-            print("Error fetching M-Pesa access token:", str(e))
-            return None
-    else:
+    # Check if a valid token exists
+    access_token = AccessToken.objects.filter(account_number=wallet).first()
+    if access_token:
         delta = timezone.now() - access_token.created_at
-        minutes = (delta.total_seconds()//60)%60
-        if minutes > 50:
-            # Access token expired
-            AccessToken.objects.get(account_number = format_phone_number(phone)).delete()
-            get_mpesa_access_token(phone)
+        minutes = (delta.total_seconds() // 60)
+        if minutes < 50:
+            return access_token.token  # still valid
+        else:
+            access_token.delete()  # expired
+
+    # Request a new token
+    try:
+        response = requests.get(
+            token_url,
+            auth=HTTPBasicAuth(consumer_key, consumer_secret)
+        )
+        response.raise_for_status()
+        token = response.json().get("access_token")
+
+        if token:
+            AccessToken.objects.create(account_number=wallet, token=token, created_at=timezone.now())
+        return token
+    except requests.RequestException as e:
+        print("Error fetching M-Pesa access token:", str(e))
+        return None
 
 def initiate_stk_push(phone_number: str, amount: int, paybill: str, account_reference: str, transaction_desc: str):
     access_token = get_mpesa_access_token(format_phone_number(phone_number))
@@ -455,7 +463,7 @@ def process_fee_allocation(reciept_id):
 
                 manager.apply_payment(receipt, allocated_money)
  
-                invoice.paid_amount = allocation
+                invoice.paid_amount += allocation
                 invoice.save()
 
                 if invoice.paid_amount == invoice.amount:

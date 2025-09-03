@@ -28,6 +28,7 @@ urlpatterns = [
     path('api/users_count/', users_count, name='users-count'),
     path('api/branch_count/', branch_count, name='branch-count'),
     path('api/current_user/', current_user, name='current-user'),
+    path('api/fetch-user/', fetch_user_profile, name='fetch-user'),
 
     path('api/genders/', gender_choices, name="genders"),    
     path('api/relationship-choices/', relationship_choices, name="relationships"),
@@ -42,6 +43,7 @@ urlpatterns = [
     path('api/promote-system/', promote_system, name = "promote-system"),
 
     path("api/reset-password/<str:username>/", reset_own_password, name="reset-own-password"),
+    path("api/change-password/", change_password, name="change-password"),
     path("api/check-token/", check_token, name="check-token"),
     path("api/download-template/", download_school_template, name="download_template"),
     

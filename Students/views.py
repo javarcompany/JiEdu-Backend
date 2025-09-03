@@ -1334,3 +1334,87 @@ def course_exams_summary(request):
         print("Error in Course student breakdown view:", e)
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def fetch_classmates(request):
+    student_regno = request.query_params.get('student_regno')
+    if not student_regno:
+        return Response({"error": "Student Registration Number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        student = Allocate_Student.objects.get(studentno__regno=student_regno)
+    except Allocate_Student.DoesNotExist:
+        return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    classmates = Allocate_Student.objects.filter(Class=student.Class).exclude(id=student.id)
+
+    classmates_data = []
+    for c in classmates:
+        s = c.studentno  # the related Student object
+        classmates_data.append({
+            "id": c.pk,
+            "name": s.get_full_name(),
+            "regno": s.regno,
+            "passport": s.passport.url if s.passport else "",  # assuming ImageField/FileField
+            "dob": s.dob.strftime("%Y-%m-%d") if s.dob else None,
+            "branch": s.branch.name if s.branch else "",
+            "location": getattr(Application.objects.filter(regno = s.regno).first(), 'phy_addr', ''),
+            "phone": s.phone if s.phone else "",
+            "email": s.email if s.email else "",
+        })
+
+    return Response(classmates_data, status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def fetch_previous_exams(request):
+    student_regno = request.query_params.get('student_regno')
+    if not student_regno:
+        return Response({"error": "Student Registration Number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        student = Application.objects.filter(regno=student_regno).first()
+    except Application.DoesNotExist:
+        return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    previous_exams_data = {
+        "id": student.pk,
+        "prev_schoolname": student.prev_schoolname,
+        "examtype": student.examtype,
+        "examyear": student.examyear,
+        "examgrade": student.examgrade,
+        "certificate": student.previousexams.url if student.previousexams else "",
+    }
+
+    return Response(previous_exams_data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def fetch_student_primary_data(request):
+    student_regno = request.query_params.get('student_regno')
+    if not student_regno:
+        return Response({"error": "Student Registration Number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        student_class = Allocate_Student.objects.filter(studentno__regno=student_regno).first()
+        student = Application.objects.filter(regno=student_regno).first()
+    except Allocate_Student.DoesNotExist or Application.DoesNotExist:
+        return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    previous_exams_data = {
+        "id": student_class.pk,
+        "course_name": student_class.Class.course.name,
+        "religion": student.religion,
+        "year_name": student_class.term.year.name,
+        "intake_name": str(student_class.term.name),
+        "guardian_email": student.guardian_email,
+        "guardian_phone": student.guardian_phone,
+        "guardian_name": f"{student.guardian_fname} {student.guardian_lname}",
+        "guardian_relationship": student.guardian_relationship,
+        "module": student_class.module.name,
+        "level": f"{student_class.level}/{getattr(CourseDuration.objects.filter(course = student_class.Class.course, module = student_class.module).first(), "duration")}",
+        "state": student_class.state
+    }
+
+    return Response(previous_exams_data, status=status.HTTP_200_OK)

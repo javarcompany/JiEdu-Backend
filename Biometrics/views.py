@@ -133,62 +133,143 @@ def activate_camera(request):
     try:
         lesson_id = request.data.get("lesson_id")
         if not lesson_id:
-            raise Exception("Lesson ID is required")
+            return JsonResponse({"error": "Lesson ID is required"}, status=400)
 
         timetable = Timetable.objects.filter(id=lesson_id).first()
         if not timetable:
-            raise Exception("Lesson not found")
+            return JsonResponse({"error": "Lesson not found"}, status=404)
 
         classroom = timetable.classroom
         if not classroom:
-            raise Exception("Classroom not assigned to this lesson")
+            return JsonResponse({"error": "Classroom not assigned"}, status=400)
 
-        cameras = classroom.cameras.filter(is_active=True)
+        cameras = CameraDevice.objects.filter(classroom=classroom, is_active=True)
         if not cameras.exists():
-            raise Exception("No active cameras set for this classroom")
+            return JsonResponse({"error": "No active cameras set for this classroom"}, status=400)
 
-        messages = []
+        success = []
+        errors = []
+        info = []
         for cam in cameras:
+            key = f"{cam.classroom.name}_{cam.role}"
             try:
-                # Try opening the stream to verify it's active
+                # Skip if already running
+                if key in running_threads and running_threads[key].is_alive():
+                    info.append(f"{key} Already running")
+                    continue
+
+                # Test stream
                 cap = cv2.VideoCapture(cam.stream_url)
-                if not cap.isOpened():
-                    raise Exception("Stream not reachable")
                 ret, frame = cap.read()
                 cap.release()
-
                 if not ret:
-                    raise Exception("No frame received")
+                    raise Exception("Stream not accessible")
  
                 cam.is_activated = True
                 cam.save()
  
-                # Start face recognition in background
-                threading.Thread(
+                # Start recognition thread
+                stop_event = threading.Event()
+                stop_events[key] = stop_event
+                thread = threading.Thread(
                     target=recognize_faces,
-                    args=(lesson_id, cam.stream_url, f"{cam.classroom.name}_{cam.role}",),
+                    args=(lesson_id, cam.stream_url, key, stop_event),
                     daemon=True
-                ).start()
- 
-                messages.append(f"{cam.role.capitalize()} camera activated")
+                )
+                running_threads[key] = thread
+                thread.start()
+
+                success.append(f"{key} Activated")
  
             except Exception as e:
                 cam.is_activated = False
                 cam.save()
-                messages.append(f"{cam.role.capitalize()} camera failed to activate: {str(e)}")
+                errors.append(f"{key} Failed: {str(e)}")
 
-        return JsonResponse({
-            "message": " | ".join(messages),
-            "classroom": classroom.name,
-            "cameras": [cam.name for cam in cameras]
-        })
+        return JsonResponse({"success": success, "errors": errors, "info": info})
 
     except Exception as e:
         print("Camera Activation Error:", e)
-        return JsonResponse({"error": str(e)}, status=500)
+        return JsonResponse({"errors": str(e)}, status=500)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def stop_face_attendance(request):
+    try:
+        lesson_id = request.data.get("lesson_id")
+        if not lesson_id:
+            return JsonResponse({"error": "Lesson ID is required"}, status=400)
+
+        timetable = Timetable.objects.filter(id=lesson_id).first()
+        if not timetable:
+            return JsonResponse({"error": "Lesson not found"}, status=404)
+
+        classroom = timetable.classroom
+        if not classroom:
+            return JsonResponse({"error": "Classroom not assigned"}, status=400)
+
+        cameras = CameraDevice.objects.filter(classroom=classroom, is_active=True)
+        if not cameras.exists():
+            return JsonResponse({"error": "No active cameras set for this classroom"}, status=400)
+
+        success, errors, info = [], [], []
+
+        for cam in cameras:
+            key = f"{cam.classroom.name}_{cam.role}"
+            try:
+                # Stop if running
+                if key in running_threads and running_threads[key].is_alive():
+                    # Signal stop
+                    if key in stop_events:
+                        stop_events[key].set()
+                        success.append(f"{key} stopping signal sent")
+                    else:
+                        info.append(f"{key} no stop flag, might already be stopped")
+                else:
+                    info.append(f"{key} not running")
+
+                stop_cleanup(cam.classroom.name)
+                with thread_lock:
+                    running_threads.pop(key, None)
+                    stop_events.pop(key, None)
+
+                # Mark camera deactivated
+                cam.is_activated = False
+                cam.save()
+
+            except Exception as e:
+                errors.append(f"{key} Failed: {str(e)}")
+
+        # Mark Students Absent:
+        result = stop_face_recognition(timetable_id=timetable.id)
+        info.append(result["info"])
+        errors.append(result["errors"])
+        
+        return JsonResponse({"success": success, "errors": errors, "info": info, "result": result})
+
+    except Exception as e:
+        print("Camera Deactivation Error:", e)
+        return JsonResponse({"errors": str(e)}, status=500)
 
 @api_view(['GET'])
 def camera_count(request):
     count = CameraDevice.objects.count()
     return Response({"count": count})
 
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def camera_status(request):
+    lesson_id = request.data.get("lesson_id")
+    timetable = Timetable.objects.filter(id=lesson_id).first()
+    if not timetable:
+        return JsonResponse({"error": "Lesson not found"}, status=404)
+
+    classroom = timetable.classroom
+    cameras = CameraDevice.objects.filter(classroom=classroom, is_active=True)
+
+    statuses = {}
+    for cam in cameras:
+        key = f"{cam.classroom.name}_{cam.role}"
+        statuses[key] = key in running_threads and running_threads[key].is_alive()
+
+    return JsonResponse({"statuses": statuses})

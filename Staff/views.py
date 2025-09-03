@@ -547,3 +547,34 @@ def get_staff_classes(request):
 
     return Response(serialized_classes)
 
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def fetch_staffmates(request):
+    staff_regno = request.query_params.get('staff_regno')
+    if not staff_regno:
+        return Response({"error": "Staff Registration Number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        staff = Staff.objects.get(regno=staff_regno)
+    except Staff.DoesNotExist:
+        return Response({"error": "Staff not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    staffmates = Staff.objects.filter(department=staff.department).exclude(id=staff.id)
+ 
+    staffmates_data = []
+    for s in staffmates:
+        staffmates_data.append({
+            "id": s.pk,
+            "name": s.get_full_name(),
+            "regno": s.regno,
+            "passport": s.passport.url if s.passport else "",  # assuming ImageField/FileField
+            "dob": s.dob.strftime("%Y-%m-%d") if s.dob else None,
+            "branch": s.branch.name if s.branch else "",
+            "location": s.designation if s.designation else "",
+            "phone": s.phone if s.phone else "",
+            "email": s.email if s.email else "",
+        })
+
+    return Response(staffmates_data, status=status.HTTP_200_OK)
+ 

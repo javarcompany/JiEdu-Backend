@@ -31,5 +31,7 @@ urlpatterns = [
     path('api/check-new-lecturer-workload/', check_new_lecturer_workload, name="check-new-lecturer-workload"),
 
     path('api/lecturer-classes/', get_staff_classes, name="lecturer-classes"),
+    path('api/fetch-staffmates/', fetch_staffmates, name="fetch-staffmates"),
+
 
 ]
