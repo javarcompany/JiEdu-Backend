@@ -577,4 +577,30 @@ def fetch_staffmates(request):
         })
 
     return Response(staffmates_data, status=status.HTTP_200_OK)
- 
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def fetch_staff_primary_data(request):
+    staff_regno = request.query_params.get('staff_regno')
+    if not staff_regno:
+        return Response({"error": "Staff Registration Number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        staff = Staff.objects.filter(regno=staff_regno).first()
+    except Staff.DoesNotExist:
+        return Response({"error": "Staff not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    staff_data = {
+        "id": staff.pk,
+        "name": staff.get_full_name(),
+        "national_id": staff.nat_id,
+        "weekly_hours": f"{staff.used_hours}/{staff.weekly_hours}",
+        "email": staff.email,
+        "phone": staff.phone,
+        "department": staff.department.name if staff.department else None,
+        "designation": staff.designation,
+        "dob": staff.dob.strftime("%Y-%m-%d") if staff.dob else None,
+        "branch": staff.branch.name if staff.branch else None,
+    }
+
+    return Response(staff_data, status=status.HTTP_200_OK)

@@ -1388,7 +1388,6 @@ def fetch_previous_exams(request):
 
     return Response(previous_exams_data, status=status.HTTP_200_OK)
 
-
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def fetch_student_primary_data(request):

@@ -33,5 +33,6 @@ urlpatterns = [
     path('api/lecturer-classes/', get_staff_classes, name="lecturer-classes"),
     path('api/fetch-staffmates/', fetch_staffmates, name="fetch-staffmates"),
 
+    path('api/staff-primary-course-data/', fetch_staff_primary_data, name="fetch-staff-primary-data"),
 
 ]
