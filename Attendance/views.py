@@ -6,6 +6,7 @@ from rest_framework.pagination import PageNumberPagination #type: ignore
 from django.db.models import Sum, Count, Q, F, Func #type: ignore
 from datetime import datetime
 from collections import defaultdict
+from django.utils import timezone #type: ignore
 
 from .models import *
 from .serializers import *
@@ -162,7 +163,7 @@ def search_student_attendance(request):
         lesson__day = today,
         dor=todate
     )
-
+ 
     if existing_attendance:
         return Response(StudentRegisterSerializer(existing_attendance, many=True).data)
     else:
@@ -1211,3 +1212,77 @@ def get_staff_lesson_analysis(request):
         "lessons": lessons,
         "reg_values": reg_values
     })
+
+    
+@api_view(["GET"])
+def search_student_unit_attendance(request):
+    class_id = request.query_params.get('selectedClass')
+    date_str = request.query_params.get('date')
+    regno = request.query_params.get('regno')
+    
+    # Initial Load checks
+    if not class_id:
+        return Response({"error": "You have not selected class"}, status=400)
+    if not date_str:
+        return Response({"error": "You have not selected date"}, status=400)
+    
+    try:
+        # a) Class
+        classObject = Class.objects.get(id=class_id)
+    except Class.DoesNotExist:
+        return Response({"error": "Invalid class selected"}, status=404)
+
+    try:
+        # b) Convert the selected datetime string to Python datetime
+        current_date = datetime.fromisoformat(date_str)
+        # Make it timezone-aware
+        if timezone.is_naive(current_date):
+            current_date = timezone.make_aware(current_date, timezone.get_current_timezone())
+    except ValueError:
+        return Response({"error": "Invalid date format"}, status=400)
+
+    current_day = current_date.strftime("%A")   # e.g. "Monday"
+    current_time = current_date.time()
+
+    # c) Find the Lesson from TableSetup
+    lessons = TableSetup.objects.filter(code="Lesson")
+    currentLesson = None
+    for lesson in lessons:
+        if lesson.start <= current_time <= lesson.end:
+            currentLesson = lesson
+            break
+
+    if not currentLesson:
+        return Response({"error": "Ooops, There was no lesson this time of the day...."}, status=404)
+
+    # d) Check the term where the date lies in
+    selectedTerm = Term.objects.filter(
+        openingDate__lte=current_date,
+        closingDate__gte=current_date
+    ).first()
+
+    if not selectedTerm:
+        return Response({"error": "No active term found for the selected date"}, status=404)
+
+    # e) Check Workloads and find the lesson for that class, that day that time
+    tt = Timetable.objects.filter(
+        term = selectedTerm,
+        Class = classObject,
+        day__name = current_day,
+        lesson = currentLesson,
+        unit__regno__regno = regno,
+    ).first()
+
+    if not tt:
+        return Response({"error": f"You didn't have a lesson with {classObject.name} on {current_day} {currentLesson.name} of {current_date.strftime('%d %B %Y at %I:%M %p')}"}, status=404)
+
+    # f) Check existing attendance
+    existing_attendance = StudentRegister.objects.filter(
+        lesson=tt,
+        dor=current_date.date()  # compare date only
+    )
+
+    if existing_attendance.exists():
+        return Response(StudentRegisterSerializer(existing_attendance, many=True).data)
+    else:
+        return Response({"error": f"No Register was marked on {current_day} {currentLesson.name} of {current_date.strftime('%d %B %Y at %I:%M %p')} for {classObject.name}"}, status=404)

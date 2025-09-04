@@ -10,6 +10,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
     
     path('api/attendance-summary/', student_attendance_percentages, name="attendance-summary"),
+    path('api/search-unit-attendance/', search_student_unit_attendance, name="search-student-unit-attendance"),
     path('api/search-attendance/', search_student_attendance, name="search-student-attendance"),
     path('api/mark-attendance/', mark_attendance, name="mark-attendance"),
     path('api/student-analysis/', get_student_analysis, name="student-analysis"),
