@@ -32,3 +32,4 @@ def auto_update_exam_status(sender, instance, **kwargs):
 @receiver(post_save, sender=ExamResult)
 def assign_grade_on_save(sender, instance, created, **kwargs):
     instance.auto_assign_grade()
+

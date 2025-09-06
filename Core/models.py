@@ -271,6 +271,9 @@ class Unit(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     module = models.ForeignKey(Module, on_delete=models.CASCADE)
     weekly_hours = models.IntegerField(verbose_name="Weekly Hours", blank=True, null=True)
+    is_published = models.BooleanField(default = False, blank=True, null = True)
+    total_topics = models.PositiveIntegerField(default=1, blank=True, null=True)
+    rating = models.PositiveIntegerField(default=0, blank=True, null=True)
 
     def __str__(self):
         return str(self.uncode) +'  ('+ str(self.abbr) +')'

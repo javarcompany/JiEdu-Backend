@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'Students',
     'Timetable',
     'Events',
+    'Examination',
     
     'rest_framework.authtoken',
     'dj_rest_auth',

@@ -18,10 +18,10 @@ class Books(models.Model):
         verbose_name_plural = 'Books'
 
 class Chapter(models.Model):
-    number = models.IntegerField()
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="Chapter")
+    number = models.PositiveIntegerField(default = 1)
     title = models.CharField(max_length=255)
     objectives = models.TextField(blank=True, null=True)
-    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="Chapter")
     duration = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
 
@@ -31,12 +31,13 @@ class Chapter(models.Model):
     class Meta:
         verbose_name = 'Chapter'
         verbose_name_plural = 'Chapters'
+        ordering = ["number", "id"]
 
 class Lesson(models.Model):
-    number = models.IntegerField()
+    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name="lessons")
+    number = models.PositiveIntegerField(default=1)
     title = models.CharField(max_length=255)
-    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE)
-    description = models.TextField()
+    description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -45,80 +46,102 @@ class Lesson(models.Model):
     class Meta:
         verbose_name = 'Lesson'
         verbose_name_plural = 'Lessons'
+        ordering = ["number", "id"]
 
     def get_short_description(self):
         return f"{str(self.description[0:50])}....."
 
 class CourseContent(models.Model):
     """Represents content (PDF, video, quiz, or assignment) in a course"""
-    CONTENT_TYPE_CHOICES = [
-        ('pdf', 'PDF Document'),
-        ('video', 'Video Link'),
-        ('quiz', 'Quiz'),
-        ('assignment', 'Assignment'),
-    ]
+    PDF = "pdf"; TEXT = "text"; AUDIO = "audio"; VIDEO = "video"; IMAGE = "image"
+    CONTENT_TYPES = [(PDF, "PDF Document"), (TEXT,"Text"), (AUDIO,"Audio"), (VIDEO,"Video"), (IMAGE,"Image")]
 
-    # content_type = models.CharField(max_length=10, choices=CONTENT_TYPE_CHOICES)
+    content_type = models.CharField(max_length=10, choices=CONTENT_TYPES)
     title = models.CharField(max_length=255)
-    # description = models.TextField()
-    topic = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="contents")
-    created_at = models.DateTimeField(auto_now_add=True)
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="contents")
 
     # For storing different content types
+    text = models.TextField(blank=True)
     pdf_file = models.FileField(upload_to='course_pdfs/', null=True, blank=True)
-    youtube_video_url = models.URLField(null=True, blank=True)
-    assignment = models.TextField(null=True, blank=True)  # Text-based assignment content
+    external_url = models.URLField(null=True, blank=True)
+    caption = models.CharField(max_length=255, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
         return self.title
+    
+    class Meta:
+        ordering = ["order", "id"]
 
-class Quiz(models.Model):
-    """Represents a quiz for a specific lesson/topic"""
-    classs = models.ForeignKey(Class, on_delete=models.CASCADE)
-    question = models.TextField()  # The question being asked in the quiz
-    coursecontent = models.ForeignKey(CourseContent, on_delete=models.CASCADE, related_name="coursequizez")
-    deadline = models.DateTimeField()  # The deadline for submitting the quiz
-    marks = models.IntegerField()
-    created_at = models.DateTimeField(auto_now_add=True)  # Timestamp when the quiz was created
+    def clean(self):
+        # Optional: validate required fields by kind
+        from django.core.exceptions import ValidationError #type: ignore
+        if self.content_type == self.TEXT and not self.text:
+            raise ValidationError("Text content requires text.")
+        if self.content_type in {self.AUDIO, self.VIDEO, self.IMAGE} and not (self.pdf_file or self.external_url):
+            raise ValidationError("Media content requires file or external_url.")
+        if self.content_type == self.PDF and not self.pdf_file:
+            raise ValidationError("Document content requires document uploaded.")
+        return super().clean()
 
-    def is_past_due(self):
-        """Check if the quiz deadline has passed."""
-        return utils.timezone.now() > self.deadline
+class LessonProgress(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="progress")
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)  # 0..100
 
-    def __str__(self):
-        return f"Quiz: {self.question[:15]}..."  # Show first 50 chars of the question
+    class Meta:
+        unique_together = ("student", "lesson")
 
-class Choice(models.Model):
-    """Represents an answer choice for a quiz question."""
-    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='choices')
-    choice_text = models.CharField(max_length=255)  # Text of the answer choice
-    is_correct = models.BooleanField(default=False)  # True if this is the correct answer, False otherwise
+# class Quiz(models.Model):
+#     """Represents a quiz for a specific lesson/topic"""
+#     classs = models.ForeignKey(Class, on_delete=models.CASCADE)
+#     question = models.TextField()  # The question being asked in the quiz
+#     coursecontent = models.ForeignKey(CourseContent, on_delete=models.CASCADE, related_name="coursequizez")
+#     deadline = models.DateTimeField()  # The deadline for submitting the quiz
+#     marks = models.IntegerField()
+#     created_at = models.DateTimeField(auto_now_add=True)  # Timestamp when the quiz was created
 
-    def __str__(self):
-        return self.choice_text
+#     def is_past_due(self):
+#         """Check if the quiz deadline has passed."""
+#         return utils.timezone.now() > self.deadline
 
-class QuizSubmission(models.Model):
-    """Represents a quiz submission from a user."""
-    student = models.ForeignKey(Student, on_delete=models.CASCADE) # Assuming we have students
-    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE)
-    selected_choices = models.ManyToManyField(Choice)  # The choices selected by the student
-    point = models.IntegerField()
-    submitted_at = models.DateTimeField(auto_now_add=True)
+#     def __str__(self):
+#         return f"Quiz: {self.question[:15]}..."  # Show first 50 chars of the question
 
-    def is_correct(self):
-        """Check if the student's answers are correct by comparing to the correct choices."""
-        correct_choices = self.quiz.choices.filter(is_correct=True)
-        selected_choices = self.selected_choices.all()
+# class Choice(models.Model):
+#     """Represents an answer choice for a quiz question."""
+#     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='choices')
+#     choice_text = models.CharField(max_length=255)  # Text of the answer choice
+#     is_correct = models.BooleanField(default=False)  # True if this is the correct answer, False otherwise
 
-        result = set(correct_choices) == set(selected_choices)
+#     def __str__(self):
+#         return self.choice_text
 
-        if result == True:
-            self.point = int(self.quiz.marks)
-        else:
-            self.point = 0
-        self.save()
+# class QuizSubmission(models.Model):
+#     """Represents a quiz submission from a user."""
+#     student = models.ForeignKey(Student, on_delete=models.CASCADE) # Assuming we have students
+#     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE)
+#     selected_choices = models.ManyToManyField(Choice)  # The choices selected by the student
+#     point = models.IntegerField()
+#     submitted_at = models.DateTimeField(auto_now_add=True)
 
-        return result
+#     def is_correct(self):
+#         """Check if the student's answers are correct by comparing to the correct choices."""
+#         correct_choices = self.quiz.choices.filter(is_correct=True)
+#         selected_choices = self.selected_choices.all()
 
-    def __str__(self):
-        return f"Submission by {self.student} for quiz '{self.quiz.question[:15]}...'"
+#         result = set(correct_choices) == set(selected_choices)
+
+#         if result == True:
+#             self.point = int(self.quiz.marks)
+#         else:
+#             self.point = 0
+#         self.save()
+
+#         return result
+
+#     def __str__(self):
+#         return f"Submission by {self.student} for quiz '{self.quiz.question[:15]}...'"
