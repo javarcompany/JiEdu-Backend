@@ -4,14 +4,15 @@ from django.core.management.base import BaseCommand #type: ignore
 from django.utils.dateparse import parse_datetime  #type: ignore
 from Events.models import Event
 
-API_KEY = "AIzaSyDDR-gbGa1iOqsO6r61lufwxzCqaN9kntk"
-CALENDAR_ID = "80553355286-m10781gs000se7566bgudfqpi1vg2lme.apps.googleusercontent.com"
+from django.conf import settings #type: ignore
+
+USER_SETTINGS = getattr(settings, 'GOOGLE_CONFIGS', None)
 
 class Command(BaseCommand):
     help = "Sync Kenya public holidays from Google Calendar"
 
     def handle(self, *args, **kwargs):
-        url = f"https://www.googleapis.com/calendar/v3/calendars/{CALENDAR_ID}/events?key={API_KEY}"
+        url = f"https://www.googleapis.com/calendar/v3/calendars/{USER_SETTINGS.get('CALENDAR_ID')}/events?key={USER_SETTINGS.get('API_KEY')}"
         response = requests.get(url)
 
         if response.status_code != 200:

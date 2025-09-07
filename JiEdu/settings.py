@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'Timetable',
     'Events',
     'Examination',
+    'LMS',
     
     'rest_framework.authtoken',
     'dj_rest_auth',
@@ -130,6 +131,11 @@ MPESA_CONFIG = {
     "MPESA_CALLBACK_URL": config("MPESA_CALLBACK_URL"),
     "SAFARICOM_API": config("SAFARICOM_API"),
     "MPESA_ENV" : "sandbox" if DEBUG else "production"
+}
+
+GOOGLE_CONFIGS = {
+    "API_KEY": config("GOOGLE_CALENDAR_KEY"),
+    "CALENDAR_ID": config("GOOGLE_CALENDAR_ID"),
 }
 
 # Database

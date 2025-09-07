@@ -2,11 +2,11 @@ from django.db import models #type: ignore
 from django import utils #type: ignore
 
 from Students.models import Student
-from Core.models import Unit, Class
+from Core.models import Unit
  
 # ==========================================================================================#
 # ========================              E-LEARNING MODULE          =========================#
-class Books(models.Model):
+class Book(models.Model):
     name = models.CharField(max_length=30)
     dor = models.DateTimeField(default=utils.timezone.now, blank=True, null=True)
 
@@ -38,6 +38,7 @@ class Lesson(models.Model):
     number = models.PositiveIntegerField(default=1)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    is_published = models.BooleanField(default=False, blank = True, null = True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -72,7 +73,8 @@ class CourseContent(models.Model):
         return self.title
     
     class Meta:
-        ordering = ["order", "id"]
+        verbose_name = 'Course Content'
+        verbose_name_plural = 'Course Contents'
 
     def clean(self):
         # Optional: validate required fields by kind
@@ -94,54 +96,3 @@ class LessonProgress(models.Model):
 
     class Meta:
         unique_together = ("student", "lesson")
-
-# class Quiz(models.Model):
-#     """Represents a quiz for a specific lesson/topic"""
-#     classs = models.ForeignKey(Class, on_delete=models.CASCADE)
-#     question = models.TextField()  # The question being asked in the quiz
-#     coursecontent = models.ForeignKey(CourseContent, on_delete=models.CASCADE, related_name="coursequizez")
-#     deadline = models.DateTimeField()  # The deadline for submitting the quiz
-#     marks = models.IntegerField()
-#     created_at = models.DateTimeField(auto_now_add=True)  # Timestamp when the quiz was created
-
-#     def is_past_due(self):
-#         """Check if the quiz deadline has passed."""
-#         return utils.timezone.now() > self.deadline
-
-#     def __str__(self):
-#         return f"Quiz: {self.question[:15]}..."  # Show first 50 chars of the question
-
-# class Choice(models.Model):
-#     """Represents an answer choice for a quiz question."""
-#     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='choices')
-#     choice_text = models.CharField(max_length=255)  # Text of the answer choice
-#     is_correct = models.BooleanField(default=False)  # True if this is the correct answer, False otherwise
-
-#     def __str__(self):
-#         return self.choice_text
-
-# class QuizSubmission(models.Model):
-#     """Represents a quiz submission from a user."""
-#     student = models.ForeignKey(Student, on_delete=models.CASCADE) # Assuming we have students
-#     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE)
-#     selected_choices = models.ManyToManyField(Choice)  # The choices selected by the student
-#     point = models.IntegerField()
-#     submitted_at = models.DateTimeField(auto_now_add=True)
-
-#     def is_correct(self):
-#         """Check if the student's answers are correct by comparing to the correct choices."""
-#         correct_choices = self.quiz.choices.filter(is_correct=True)
-#         selected_choices = self.selected_choices.all()
-
-#         result = set(correct_choices) == set(selected_choices)
-
-#         if result == True:
-#             self.point = int(self.quiz.marks)
-#         else:
-#             self.point = 0
-#         self.save()
-
-#         return result
-
-#     def __str__(self):
-#         return f"Submission by {self.student} for quiz '{self.quiz.question[:15]}...'"

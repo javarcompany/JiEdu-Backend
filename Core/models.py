@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 from django.db import models #type: ignore
 from django import utils #type: ignore
+from django.contrib.postgres.fields import ArrayField  #type: ignore
 
 from django.db.models.fields.files import ImageField  #type: ignore
 
@@ -274,6 +275,13 @@ class Unit(models.Model):
     is_published = models.BooleanField(default = False, blank=True, null = True)
     total_topics = models.PositiveIntegerField(default=1, blank=True, null=True)
     rating = models.PositiveIntegerField(default=0, blank=True, null=True)
+    welcome_note = models.TextField(blank=True, null=True)
+    welcome_video = models.URLField(blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+
+    # ✅ Storing list-type fields
+    objectives = models.TextField( blank=True, null = True)
+    requirements = models.TextField( blank=True, null = True)
 
     def __str__(self):
         return str(self.uncode) +'  ('+ str(self.abbr) +')'
