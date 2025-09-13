@@ -470,6 +470,12 @@ class ClassViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
         
+        if request.query_params.get('branch_id'):
+            branch_id = request.query_params.get('branch_id')
+            queryset = Class.objects.filter(branch__id = branch_id)
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({'results': serializer.data})  # mimic paginated structure
+        
         return super().list(request, *args, **kwargs)
 
 class ClassroomViewSet(viewsets.ModelViewSet):

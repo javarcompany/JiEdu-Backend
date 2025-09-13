@@ -236,8 +236,8 @@ def mark_attendance(request):
     if is_admin_user(user) or user.is_superuser:
         # Mark Staff Absent
         try:
-            trainer = Staff.objects.get(user=user)
-            Staff.objects.update_or_create(
+            trainer = lesson_obj.unit.regno
+            StaffRegister.objects.update_or_create(
                 lecturer=trainer,
                 lesson=lesson_obj,
                 dor=datetime.today().date(),
@@ -246,7 +246,7 @@ def mark_attendance(request):
                     "tor": datetime.now().time()
                 }
             )
-        except Staff.DoesNotExist:
+        except StaffRegister.DoesNotExist:
             errors.append("Staff not found.")
 
     if errors:

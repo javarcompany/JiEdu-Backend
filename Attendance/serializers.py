@@ -6,8 +6,7 @@ class StudentRegisterSerializer(serializers.ModelSerializer):
     mname = serializers.CharField(source='student.mname')
     sname = serializers.CharField(source='student.sname')
     regno = serializers.CharField(source='student.regno')
-    passport = serializers.ImageField(source='student.passport', allow_null=True)
-
+    passport = serializers.SerializerMethodField()
     unit_name = serializers.CharField(source='lesson.unit.unit.abbr')
     class_name = serializers.CharField(source='lesson.Class.name')
     year_name = serializers.CharField(source='lesson.term.year')
@@ -32,6 +31,14 @@ class StudentRegisterSerializer(serializers.ModelSerializer):
     
     def get_dor_date(self, obj):
         return obj.dor.strftime("%Y-%m-%d")
+    
+    def get_passport(self, obj):
+        request = self.context.get('request')
+        if obj.student and obj.student.passport:
+            passport_url = obj.student.passport.url
+            # return request.build_absolute_uri(passport_url) if request else passport_url
+            return passport_url
+        return None
 
 class AttendanceModesrSerializer(serializers.ModelSerializer):
 

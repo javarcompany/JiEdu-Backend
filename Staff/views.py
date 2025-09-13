@@ -110,7 +110,6 @@ def assign_workloads_batch(request):
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def assign_tutor_view(request, class_id, lecturer_id):
-    print("Class ID:", class_id, "Lecturer ID: ", lecturer_id)
     message = assign_tutor(class_id, lecturer_id)
 
     return Response(message)
@@ -126,10 +125,17 @@ class StaffViewSet(viewsets.ModelViewSet):
             queryset = self.filter_queryset(self.get_queryset())
             serializer = self.get_serializer(queryset, many=True)
             return Response({'results': serializer.data})  # mimic paginated structure
+        
         no_pagination = request.query_params.get('no_pagination')
         if no_pagination == 'true':
             self.pagination_class = None  # disables pagination for this request
-            
+        
+        if request.query_params.get('branch_id'):
+            branch_id = request.query_params.get('branch_id')
+            queryset = Staff.objects.filter(branch__id = branch_id).order_by("id")
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({'results': serializer.data})  # mimic paginated structure
+        
         return super().list(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'], url_path='staff_counts')

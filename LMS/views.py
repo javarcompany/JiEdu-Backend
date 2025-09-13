@@ -53,14 +53,14 @@ def get_unit_details(request):
         "requirements": unit.requirements.splitlines() if unit.requirements else [],
         "lessons": [
             {"number": f"{lesson.chapter.number}.{lesson.number}", "title": lesson.title}
-            for lesson in Lesson.objects.filter(chapter__in = topics)
+            for lesson in Lesson.objects.filter(chapter__in = topics).order_by("id")
         ],
         "topics": [
             {
                 "number": topic.number,
                 "title": topic.title,
                 "lessons": [
-                    {"number": lesson.number, "title": lesson.title}
+                    {"id":lesson.id, "number": lesson.number, "title": lesson.title}
                     for lesson in Lesson.objects.filter(chapter = topic)
                 ],
             }
@@ -81,7 +81,7 @@ def get_unit_details(request):
 
     return Response(data, status=status.HTTP_200_OK)
  
-@api_view(['POST'])
+@api_view(['PUT'])
 @permission_classes([permissions.IsAuthenticated])
 def publish_unit(request):
     unit_id = request.query_params.get("unitid")
@@ -96,11 +96,21 @@ def publish_unit(request):
     text = ""
     if unit.is_published:
         unit.is_published = False
-        text = "Published"
+        text = "Unpublished"
     else:
         unit.is_published = True
-        text = "Unpublished"
+        text = "Published"
     unit.save()
 
     return Response({"success":f"{unit.name} {text} Successfully!"}, status=status.HTTP_200_OK)
- 
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def get_lesson_contents(request):
+    lesson_id = request.query_params.get("lesson_id")
+    contents = CourseContent.objects.filter(lesson_id=lesson_id).order_by("created_at")
+    if not contents.exists():
+        return Response({"error": "No content found for this lesson"}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = CourseContentSerializer(contents, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)

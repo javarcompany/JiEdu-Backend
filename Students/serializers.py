@@ -9,6 +9,7 @@ class StudentSerializer(serializers.ModelSerializer):
     intake_name = serializers.CharField(source='intake.name', read_only=True)
     branch_name = serializers.CharField(source='branch.name', read_only=True)
     sponsor_name = serializers.CharField(source='sponsor.name', read_only=True)
+    passporturl = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
@@ -16,7 +17,7 @@ class StudentSerializer(serializers.ModelSerializer):
             'id', 'regno', 'fname', 'mname', 'sname', 'gender', 'dob', 'nat_id',
             'phone', 'email', 'course', 'course_name', 'branch', 'branch_name',
             'dor', 'year', 'year_name', 'intake', 'intake_name', 'sponsor', 'sponsor_name',
-            'passport', 'state',
+            'passporturl', 'state',
         ]
 
     def validate_dob(self, value):
@@ -32,6 +33,14 @@ class StudentSerializer(serializers.ModelSerializer):
     
     def get_dob(self, obj):
         return obj.dor.strftime("%Y-%m-%d")
+    
+    def get_passporturl(self, obj):
+        request = self.context.get('request')
+        if obj and obj.passport:
+            passport_url = obj.passport.url
+            # return request.build_absolute_uri(passport_url) if request else passport_url
+            return passport_url
+        return None
 
 class ApplicationCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -54,6 +63,7 @@ class ApplicationDetailSerializer(serializers.ModelSerializer):
     intake_name = serializers.CharField(source='intake.name', read_only=True)
     branch_name = serializers.CharField(source='branch.name', read_only=True)
     sponsor_name = serializers.CharField(source='sponsor.name', read_only=True)
+    passporturl = serializers.SerializerMethodField()
 
     class Meta:
         model = Application
@@ -61,9 +71,17 @@ class ApplicationDetailSerializer(serializers.ModelSerializer):
             'phone', 'email', 'religion', 'phy_addr', 'home_addr', 'regno',
             'guardian_fname', 'guardian_lname', 'guardian_email', 'guardian_phone', 
             'guardian_relationship', 'examtype', 'examyear', 'prev_schoolname', 'sponsor_name',
-            'examgrade', 'previousexams', 'passport', 'course', 'branch', 'sponsor', 'branch_name',
+            'examgrade', 'previousexams', 'passporturl', 'course', 'branch', 'sponsor', 'branch_name',
             'year', 'intake', 'course_name', 'year_name', 'intake_name', 'state']
 
+    def get_passporturl(self, obj):
+        request = self.context.get('request')
+        if obj and obj.passport:
+            passport_url = obj.passport.url
+            # return request.build_absolute_uri(passport_url) if request else passport_url
+            return passport_url
+        return None
+    
 class StudentAllocationSerializer(serializers.ModelSerializer):
     fname = serializers.CharField(source='studentno.fname', read_only=True)
     mname = serializers.CharField(source='studentno.mname', read_only=True)
@@ -93,5 +111,6 @@ class StudentAllocationSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if obj.studentno and obj.studentno.passport:
             passport_url = obj.studentno.passport.url
-            return request.build_absolute_uri(passport_url) if request else passport_url
+            # return request.build_absolute_uri(passport_url) if request else passport_url
+            return passport_url
         return None

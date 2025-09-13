@@ -1285,6 +1285,7 @@ def institution_fee_summary(request):
                 dept_status = "Overpaid"
 
             dept_data.append({
+                "id": dept.id,
                 "name": dept.name,
                 "abbr": dept.abbr,
                 "invoiced": float(dept_invoiced),

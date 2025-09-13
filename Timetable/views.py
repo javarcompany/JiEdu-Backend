@@ -20,7 +20,7 @@ from .application import *
 
 from Staff.models import Staff
 from Students.models import Allocate_Student
-from Core.models import Department, Institution
+from Core.models import Department, Institution, Branch
 from Core.application import is_rep_user, is_staff_user, is_student_user, is_tutor_user, is_admin_user
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -332,6 +332,9 @@ def staff_timetable(request):
     user = request.user
     staff_regno = request.query_params.get("staff_regno")
     term_id = request.query_params.get("term_id")
+    branch_id = request.query_params.get("branch_id")
+    if (not branch_id) or (branch_id == "0") or (branch_id == ""):
+        branch_id = Branch.objects.first().id
     
     if is_staff_user(user) or is_tutor_user(user):
         if (not staff_regno) or (staff_regno == "0") or (staff_regno == ""):
@@ -339,7 +342,7 @@ def staff_timetable(request):
     elif is_admin_user(user) or user.is_superuser:
         staff_id = request.query_params.get("staff_id")
         if (not staff_id) or (staff_id == "0") or (staff_id == ""):
-            staff_regno = Staff.objects.first().regno
+            staff_regno = Staff.objects.filter(branch__id = branch_id).order_by("id").first().regno
         else:
             staff_regno = Staff.objects.get(id = staff_id).regno
     else:
@@ -392,16 +395,26 @@ def institution_timetable(request):
     term_id = request.query_params.get("term_id")
     if (not term_id) or (term_id == "0") or (term_id == ""):
         term_id = Term.objects.get(name = Institution.objects.first().current_intake, year = Institution.objects.first().current_year).id
-
+    
+    branch_id = request.query_params.get("branch_id")
+    noBranch = False
+    if (not branch_id) or (branch_id == "0") or (branch_id == ""):
+        noBranch = True
+        
     lessons = TableSetup.objects.filter(code="Lesson").order_by('start')  # Sorted by time
     days = Days.objects.order_by('id')
-    classes = Class.objects.filter(state = "Active").order_by("name")
-    timetable_entries = Timetable.objects.filter(term__id = term_id).select_related('day', 'lesson', 'unit', 'classroom', "Class")
+    if noBranch:
+        classes = Class.objects.filter(state = "Active").order_by("name")
+        timetable_entries = Timetable.objects.filter(term__id = term_id).select_related('day', 'lesson', 'unit', 'classroom', "Class")
+    else:
+        classes = Class.objects.filter(branch__id = branch_id, state = "Active").order_by("name")
+        timetable_entries = Timetable.objects.filter(Class__branch__id = branch_id, term_id = term_id).select_related('day', 'lesson', 'unit', 'classroom', 'Class')
+
     serializer = TimetableSerializer(timetable_entries, many=True)
     data = {
         "lessons": [{"id": l.id, "name": l.name, "start": l.start, "end": l.end} for l in lessons],
         "days": [{"id": d.id, "name": d.name}for d in days],
-        "classes": [{"id": cls.id, "name": cls.name} for cls in classes],
+        "classes": [{"id": cls.id, "name": cls.name, "branch":cls.branch.id, "branch_name": cls.branch.name} for cls in classes],
         "timetable": serializer.data
     }
     
@@ -411,9 +424,13 @@ def institution_timetable(request):
 @permission_classes([permissions.IsAuthenticated])
 def class_timetable(request):
     class_id = request.query_params.get("class_id")
-    if (not class_id) or (class_id == "0"):
-        class_id = Class.objects.first().id
+    branch_id = request.query_params.get("branch_id")
+    if (not branch_id) or (branch_id == "0") or (branch_id == ""):
+        branch_id = Branch.objects.first().id
 
+    if (not class_id) or (class_id == "0"):
+        class_id = Class.objects.filter(branch__id = branch_id).first().id
+        
     lessons = TableSetup.objects.filter(code="Lesson").order_by('start')  # Sorted by time
     days = Days.objects.order_by('id')
     timetable_entries = Timetable.objects.filter(Class__id = class_id, term = Class.objects.get(id = class_id).intake).select_related('day', 'lesson', 'unit', 'classroom')
@@ -431,6 +448,11 @@ def class_timetable(request):
 def department_timetable(request):
     department_id = request.query_params.get("department_id")
     term_id = request.query_params.get("term_id")
+    branch_id = request.query_params.get("branch_id")
+    noBranch = False
+    if (not branch_id) or (branch_id == "0") or (branch_id == ""):
+        noBranch = True
+        
     if (not department_id) or (department_id == "0") or (department_id == ""):
         department_id = Department.objects.first().id
     
@@ -439,13 +461,17 @@ def department_timetable(request):
 
     lessons = TableSetup.objects.filter(code="Lesson").order_by('start')  # Sorted by time
     days = Days.objects.order_by('id')
-    classes = Class.objects.filter(course__department__id = department_id).order_by("name")
-    timetable_entries = Timetable.objects.filter(Class__course__department__id = department_id, term__id = term_id).select_related('day', 'lesson', 'unit', 'classroom', "Class")
+    if noBranch:
+        classes = Class.objects.filter(course__department__id = department_id).order_by("name")
+        timetable_entries = Timetable.objects.filter(Class__course__department__id = department_id, term__id = term_id).select_related('day', 'lesson', 'unit', 'classroom', "Class")
+    else:
+        classes = Class.objects.filter(branch__id = branch_id, course__department__id = department_id).order_by("name")
+        timetable_entries = Timetable.objects.filter(Class__branch__id = branch_id, Class__course__department__id = department_id, term_id = term_id).select_related('day', 'lesson', 'unit', 'classroom', 'Class')
     serializer = TimetableSerializer(timetable_entries, many=True)
     data = {
         "lessons": [{"id": l.id, "name": l.name, "start": l.start, "end": l.end} for l in lessons],
         "days": [{"id": d.id, "name": d.name}for d in days],
-        "classes": [{"id": cls.id, "name": cls.name} for cls in classes],
+        "classes": [{"id": cls.id, "name": cls.name, "branch":cls.branch.id, "branch_name": cls.branch.name} for cls in classes],
         "timetable": serializer.data
     }
     

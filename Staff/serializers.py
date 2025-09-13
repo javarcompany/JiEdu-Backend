@@ -7,6 +7,7 @@ class StaffSerializer(serializers.ModelSerializer):
     branch_name = serializers.CharField(source='branch.name', read_only=True)
     designation_name = serializers.CharField(source='designation.name', read_only=True)
     fullname = serializers.SerializerMethodField()
+    passporturl = serializers.SerializerMethodField()
 
     class Meta:
         model = Staff
@@ -15,7 +16,7 @@ class StaffSerializer(serializers.ModelSerializer):
             'nat_id', 'phone', 'email', 'department', 'department_name',
             'branch', 'branch_name', 'dor', 'designation', 'weekly_hours',
             'used_hours', 'load_state',
-            'passport', 'state', 'designation_name', "fullname", 'user'
+            'passporturl', 'state', 'designation_name', "fullname", 'user'
         ]
 
     def validate_dob(self, value):
@@ -28,6 +29,14 @@ class StaffSerializer(serializers.ModelSerializer):
         if not value.isdigit() or len(value) < 9:
             raise serializers.ValidationError("Enter a valid phone number.")
         return value
+    
+    def get_passporturl(self, obj):
+        request = self.context.get('request')
+        if obj and obj.passport:
+            passport_url = obj.passport.url
+            # return request.build_absolute_uri(passport_url) if request else passport_url
+            return passport_url
+        return None
 
     def get_fullname(self, obj):
         return f"{obj.fname} {obj.mname} {obj.sname} - {obj.regno}".strip()
@@ -55,7 +64,9 @@ class StaffWorkloadSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if obj.regno and obj.regno.passport:
             passport_url = obj.regno.passport.url
-            return request.build_absolute_uri(passport_url) if request else passport_url
+            # return request.build_absolute_uri(passport_url) if request else passport_url
+
+            return passport_url
         return None
 
 class ClassTutorSerializer(serializers.ModelSerializer):
@@ -76,6 +87,7 @@ class ClassTutorSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if obj.regno and obj.regno.passport:
             passport_url = obj.regno.passport.url
-            return request.build_absolute_uri(passport_url) if request else passport_url
+            # return request.build_absolute_uri(passport_url) if request else passport_url
+            return passport_url
         return None
 

@@ -22,3 +22,17 @@ class ChapterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chapter
         fields = ["id","title","description","order","lessons"]
+
+class CourseContentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourseContent
+        fields = [
+            "id",
+            "content_type",
+            "title",
+            "text",
+            "pdf_file",
+            "external_url",
+            "caption",
+            "created_at",
+        ]
